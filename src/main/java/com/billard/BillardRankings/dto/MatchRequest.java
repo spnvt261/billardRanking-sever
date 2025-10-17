@@ -10,6 +10,7 @@ import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -23,13 +24,23 @@ public class MatchRequest {
     
     private Long tournamentId;
     
-    @NotNull(message = "Team 1 ID is required")
+//    @NotNull(message = "Team 1 ID is required")
     private Long team1Id;
     
-    @NotNull(message = "Team 2 ID is required")
+//    @NotNull(message = "Team 2 ID is required")
     private Long team2Id;
-    
+
+    // ✅ Thay vào đó truyền list player ID
+    @NotNull(message = "Team 1 is required")
+    private List<Long> team1Players;
+
+    @NotNull(message = "Team 2 is required")
+    private List<Long> team2Players;
+
+    @NotNull(message = "Score is required")
     private Integer scoreTeam1 = 0;
+
+    @NotNull(message = "Score is required")
     private Integer scoreTeam2 = 0;
     
     private Match.MatchType matchType = Match.MatchType.GROUP;
@@ -38,7 +49,7 @@ public class MatchRequest {
     private BigDecimal betAmount;
     
 //    @NotNull(message = "Match date is required")
-    private LocalDateTime matchDate;
+    private String matchDate;
     
     private String note;
     private Long winnerId;

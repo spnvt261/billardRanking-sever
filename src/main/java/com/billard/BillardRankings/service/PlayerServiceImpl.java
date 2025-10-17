@@ -2,6 +2,7 @@ package com.billard.BillardRankings.service;
 
 import com.billard.BillardRankings.constant.ResourceName;
 import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.PlayerListResponse;
 import com.billard.BillardRankings.dto.PlayerRequest;
 import com.billard.BillardRankings.dto.PlayerResponse;
 import com.billard.BillardRankings.entity.Player;
@@ -84,7 +85,6 @@ public class PlayerServiceImpl implements PlayerService {
         );
     }
 
-
     @Override
     public PlayerResponse findById(Long id, Long workspaceId) {
         Player player = playerRepository.findById(id)
@@ -155,5 +155,11 @@ public class PlayerServiceImpl implements PlayerService {
                 );
 
         return response;
+    }
+
+    @Override
+    public List<PlayerListResponse> findAllSimple(Long workspaceId) {
+        List<Player> players = playerRepository.findByWorkspaceId(workspaceId);
+        return playerMapper.entityToSimpleResponse(players);
     }
 }

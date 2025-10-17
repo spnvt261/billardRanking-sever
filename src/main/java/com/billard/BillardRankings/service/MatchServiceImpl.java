@@ -45,39 +45,74 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
     public MatchResponse save(MatchRequest request) {
         Long workspaceId = request.getWorkspaceId();
 
-        // ✅ Kiểm tra team1
-        if (request.getTeam1Id() != null) {
-            Team team1 = teamRepository.findById(request.getTeam1Id())
-                    .orElseThrow(() -> new ResourceNotFoundException(ResourceName.TEAM, request.getTeam1Id()));
-            if (!team1.getWorkspaceId().equals(workspaceId)) {
-                throw new IllegalArgumentException("Team 1 does not belong to the specified workspace.");
-            }
+        // ✅ Tạo team1 nếu có danh sách player
+        Long team1Id = request.getTeam1Id();
+        if (team1Id == null && request.getTeam1Players() != null && !request.getTeam1Players().isEmpty()) {
+            team1Id = createTeamWithPlayers(request.getTeam1Players(), workspaceId, "Team 1");
         }
 
-        // ✅ Kiểm tra team2
-        if (request.getTeam2Id() != null) {
-            Team team2 = teamRepository.findById(request.getTeam2Id())
-                    .orElseThrow(() -> new ResourceNotFoundException(ResourceName.TEAM, request.getTeam2Id()));
-            if (!team2.getWorkspaceId().equals(workspaceId)) {
-                throw new IllegalArgumentException("Team 2 does not belong to the specified workspace.");
-            }
+        // ✅ Tạo team2 nếu có danh sách player
+        Long team2Id = request.getTeam2Id();
+        if (team2Id == null && request.getTeam2Players() != null && !request.getTeam2Players().isEmpty()) {
+            team2Id = createTeamWithPlayers(request.getTeam2Players(), workspaceId, "Team 2");
         }
 
-        // ✅ Nếu cả hai đều tồn tại, kiểm tra cùng workspace với nhau (đề phòng lỗi logic)
-        if (request.getTeam1Id() != null && request.getTeam2Id() != null) {
-            Team team1 = teamRepository.findById(request.getTeam1Id()).get();
-            Team team2 = teamRepository.findById(request.getTeam2Id()).get();
-
-            if (!team1.getWorkspaceId().equals(team2.getWorkspaceId())) {
-                throw new IllegalArgumentException("Team 1 and Team 2 must belong to the same workspace.");
-            }
-        }
-
-        // ✅ Nếu qua hết -> map & lưu như cũ
+        // ✅ Map sang entity & gán teamId
         Match match = matchMapper.requestToEntity(request);
+        match.setTeam1Id(team1Id);
+        match.setTeam2Id(team2Id);
+
+        // ✅ Xác định winnerId dựa vào điểm số
+        Integer score1 = request.getScoreTeam1() != null ? request.getScoreTeam1() : 0;
+        Integer score2 = request.getScoreTeam2() != null ? request.getScoreTeam2() : 0;
+
+        if (score1 > score2) {
+            match.setWinnerId(team1Id);
+        } else if (score2 > score1) {
+            match.setWinnerId(team2Id);
+        } else {
+            match.setWinnerId(null); // Hòa
+        }
+
+        // ✅ Lưu match
         match = matchRepository.save(match);
         return matchMapper.entityToResponse(match);
     }
+
+
+    private Long createTeamWithPlayers(List<Long> playerIds, Long workspaceId, String teamNamePrefix) {
+        // ✅ Tạo team
+        Team team = new Team();
+        team.setTeamName(teamNamePrefix + " - " + System.currentTimeMillis());
+        team.setWorkspaceId(workspaceId);
+        team = teamRepository.save(team);
+
+        // ✅ Lấy danh sách player từ DB
+        var players = playerRepository.findAllById(playerIds);
+        if (players.size() != playerIds.size()) {
+            throw new IllegalArgumentException("Some player IDs do not exist.");
+        }
+
+        // ✅ Kiểm tra workspace hợp lệ
+        boolean hasInvalidPlayer = players.stream()
+                .anyMatch(p -> !p.getWorkspaceId().equals(workspaceId));
+        if (hasInvalidPlayer) {
+            throw new IllegalArgumentException("All players must belong to the same workspace as the match.");
+        }
+
+        // ✅ Gắn player cho team
+        for (var player : players) {
+            TeamPlayer teamPlayer = new TeamPlayer();
+            teamPlayer.setTeamId(team.getId());
+            teamPlayer.setPlayerId(player.getId());
+            teamPlayer.setWorkspaceId(workspaceId);
+            teamPlayerRepository.save(teamPlayer);
+        }
+
+        return team.getId();
+    }
+
+
 
     // ------------------- Xây dựng dữ liệu chi tiết -------------------
 

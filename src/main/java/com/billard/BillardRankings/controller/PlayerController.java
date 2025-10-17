@@ -2,6 +2,7 @@ package com.billard.BillardRankings.controller;
 
 import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.PlayerListResponse;
 import com.billard.BillardRankings.dto.PlayerRequest;
 import com.billard.BillardRankings.dto.PlayerResponse;
 import com.billard.BillardRankings.service.PlayerService;
@@ -42,6 +43,13 @@ public class PlayerController {
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
         return ResponseEntity.status(HttpStatus.OK).body(playerService.findById(id, workspaceId));
+    }
+
+    @GetMapping("/get-list")
+    public ResponseEntity<List<PlayerListResponse>> getAllPlayersSimple(
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        return ResponseEntity.ok(playerService.findAllSimple(workspaceId));
     }
 
     @PostMapping

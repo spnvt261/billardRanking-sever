@@ -43,13 +43,13 @@ public class Match extends BaseEntity {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "match_category")
-    private MatchCategory matchCategory = MatchCategory.TOURNAMENT;
+    private MatchCategory matchCategory = MatchCategory.FUN;
     
     @Column(name = "bet_amount", precision = 12, scale = 2)
     private BigDecimal betAmount;
     
     @Column(name = "match_date")
-    private LocalDateTime matchDate;
+    private String matchDate;
     
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
@@ -62,6 +62,6 @@ public class Match extends BaseEntity {
     }
     
     public enum MatchCategory {
-        TOURNAMENT, FUN, BETTING
+         FUN, TOURNAMENT, BETTING
     }
 }

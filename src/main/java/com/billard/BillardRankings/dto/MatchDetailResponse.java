@@ -18,7 +18,7 @@ public class MatchDetailResponse {
     private Long tournamentId;
     private String tournamentName;
     private String matchType;
-    private LocalDateTime matchDate;
+    private String matchDate;
     private Integer scoreTeam1;
     private Integer scoreTeam2;
     private TeamDetail team1;

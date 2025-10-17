@@ -34,7 +34,10 @@ public class Player extends BaseEntity {
     private Integer startElo;
 
     @Column(name = "start_money")
-    private Integer startMoney;
+    private Integer startMoney = 0;
+
+    @Column(name = "is_friend")
+    private Boolean isFriend = true;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

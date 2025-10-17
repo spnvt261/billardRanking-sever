@@ -29,10 +29,10 @@ public class Tournament extends BaseEntity {
     private TournamentType tournamentType;
     
     @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    private String startDate;
     
     @Column(name = "end_date")
-    private LocalDate endDate;
+    private String endDate;
     
     @Column(name = "location", length = 255)
     private String location;

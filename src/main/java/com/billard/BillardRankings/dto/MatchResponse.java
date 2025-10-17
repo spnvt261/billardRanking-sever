@@ -28,7 +28,7 @@ public class MatchResponse {
     private Match.MatchType matchType;
     private Match.MatchCategory matchCategory;
     private BigDecimal betAmount;
-    private LocalDateTime matchDate;
+    private String matchDate;
     private String note;
     private Long winnerId;
     private LocalDateTime createdAt;

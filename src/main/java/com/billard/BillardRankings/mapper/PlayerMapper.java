@@ -1,9 +1,11 @@
 package com.billard.BillardRankings.mapper;
 
+import com.billard.BillardRankings.dto.PlayerListResponse;
 import com.billard.BillardRankings.dto.PlayerRequest;
 import com.billard.BillardRankings.dto.PlayerResponse;
 import com.billard.BillardRankings.entity.Player;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
@@ -23,4 +25,11 @@ public interface PlayerMapper extends GenericMapper<Player, PlayerRequest, Playe
     
     @Override
     List<PlayerResponse> entityToResponse(List<Player> entities);
+
+    // 🆕 Thêm phương thức mới
+    @Mapping(source = "id", target = "value")
+    @Mapping(source = "name", target = "label")
+    PlayerListResponse entityToSimpleResponse(Player entity);
+
+    List<PlayerListResponse> entityToSimpleResponse(List<Player> entities);
 }

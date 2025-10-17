@@ -25,13 +25,15 @@ public class MatchController {
     public ResponseEntity<ListResponse<MatchResponse>> getAllMatches(
             @RequestParam(name = "page", defaultValue = AppConstants.DEFAULT_PAGE_NUMBER) int page,
             @RequestParam(name = "size", defaultValue = AppConstants.DEFAULT_PAGE_SIZE) int size,
-            @RequestParam(name = "sort", defaultValue = AppConstants.DEFAULT_SORT) String sort,
             @RequestParam(name = "filter", required = false) @Nullable String filter,
             @RequestParam(name = "search", required = false) @Nullable String search,
             @RequestParam(name = "all", required = false) boolean all,
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(matchService.findAll(page, size, sort, filter, search, all, workspaceId));
+        // Mặc định sắp xếp theo id giảm dần
+        String sort = "id,desc";
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(matchService.findAll(page, size, sort, filter, search, all, workspaceId));
     }
 
     @GetMapping("/{id}")

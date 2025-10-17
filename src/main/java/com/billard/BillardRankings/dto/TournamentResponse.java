@@ -21,8 +21,8 @@ public class TournamentResponse {
     private Long workspaceId;
     private String name;
     private Tournament.TournamentType tournamentType;
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private String startDate;
+    private String endDate;
     private String location;
     private Integer prize;
 

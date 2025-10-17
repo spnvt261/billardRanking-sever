@@ -31,9 +31,9 @@ public class TournamentRequest {
     private Tournament.TournamentType tournamentType;
     
     @NotNull(message = "Start date is required")
-    private LocalDate startDate;
+    private String startDate;
     
-    private LocalDate endDate;
+    private String endDate;
     
     @Size(max = 255, message = "Location must not exceed 255 characters")
     private String location;
