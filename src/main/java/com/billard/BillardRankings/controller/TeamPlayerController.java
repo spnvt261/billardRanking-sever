@@ -1,0 +1,75 @@
+package com.billard.BillardRankings.controller;
+
+import com.billard.BillardRankings.constant.AppConstants;
+import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.TeamPlayerRequest;
+import com.billard.BillardRankings.dto.TeamPlayerResponse;
+import com.billard.BillardRankings.service.TeamPlayerService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/team-players")
+@RequiredArgsConstructor
+@CrossOrigin(AppConstants.FRONTEND_HOST)
+public class TeamPlayerController {
+
+    private final TeamPlayerService teamPlayerService;
+
+    @GetMapping
+    public ResponseEntity<ListResponse<TeamPlayerResponse>> getAllTeamPlayers(
+            @RequestParam(name = "page", defaultValue = AppConstants.DEFAULT_PAGE_NUMBER) int page,
+            @RequestParam(name = "size", defaultValue = AppConstants.DEFAULT_PAGE_SIZE) int size,
+            @RequestParam(name = "sort", defaultValue = AppConstants.DEFAULT_SORT) String sort,
+            @RequestParam(name = "filter", required = false) @Nullable String filter,
+            @RequestParam(name = "search", required = false) @Nullable String search,
+            @RequestParam(name = "all", required = false) boolean all,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(teamPlayerService.findAll(page, size, sort, filter, search, all, workspaceId));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TeamPlayerResponse> getTeamPlayer(
+            @PathVariable("id") Long id,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(teamPlayerService.findById(id, workspaceId));
+    }
+
+    @PostMapping
+    public ResponseEntity<TeamPlayerResponse> createTeamPlayer(@RequestBody TeamPlayerRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(teamPlayerService.save(request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TeamPlayerResponse> updateTeamPlayer(
+            @PathVariable("id") Long id,
+            @RequestBody TeamPlayerRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(teamPlayerService.save(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTeamPlayer(
+            @PathVariable("id") Long id,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        teamPlayerService.delete(id, workspaceId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteTeamPlayers(
+            @RequestBody List<Long> ids,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        teamPlayerService.delete(ids, workspaceId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+}

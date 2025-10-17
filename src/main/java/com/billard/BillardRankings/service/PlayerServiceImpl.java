@@ -1,0 +1,159 @@
+package com.billard.BillardRankings.service;
+
+import com.billard.BillardRankings.constant.ResourceName;
+import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.PlayerRequest;
+import com.billard.BillardRankings.dto.PlayerResponse;
+import com.billard.BillardRankings.entity.Player;
+import com.billard.BillardRankings.exception.ResourceNotFoundException;
+import com.billard.BillardRankings.mapper.PlayerMapper;
+import com.billard.BillardRankings.repository.EloHistoryRepository;
+import com.billard.BillardRankings.repository.PlayerRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class PlayerServiceImpl implements PlayerService {
+
+    private final PlayerRepository playerRepository;
+    private final PlayerMapper playerMapper;
+    private final EloHistoryRepository eloHistoryRepository;
+
+    @Override
+    public ListResponse<PlayerResponse> findAll(int page, int size, String sort, String filter, String search, boolean all, Long workspaceId) {
+        // 1️⃣ Lấy toàn bộ player trong workspace
+        List<Player> allPlayers = playerRepository.findByWorkspaceId(workspaceId);
+
+        // 2️⃣ Map entity -> DTO và tính Elo
+        List<PlayerResponse> allResponses = allPlayers.stream()
+                .map(this::mapPlayerWithElo)
+                .toList();
+
+        // 3️⃣ Sắp xếp toàn bộ theo Elo giảm dần
+        List<PlayerResponse> sortedResponses = allResponses.stream()
+                .sorted((p1, p2) -> {
+                    int cmp = Integer.compare(p2.getElo(), p1.getElo());
+                    if (cmp == 0) {
+                        // Nếu Elo bằng nhau thì sắp theo tên để ổn định
+                        return p1.getName().compareToIgnoreCase(p2.getName());
+                    }
+                    return cmp;
+                })
+                .toList();
+
+        // 4️⃣ Gán rank cho tất cả player
+        for (int i = 0; i < sortedResponses.size(); i++) {
+            sortedResponses.get(i).setRank(i + 1);
+        }
+
+        // 5️⃣ Nếu all == true, trả về toàn bộ
+        if (all) {
+            return new ListResponse<>(
+                    sortedResponses,
+                    1,
+                    sortedResponses.size(),
+                    sortedResponses.size(),
+                    1,
+                    true
+            );
+        }
+
+        // 6️⃣ Phân trang thủ công
+        int totalElements = sortedResponses.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int fromIndex = Math.max(0, (page - 1) * size);
+        int toIndex = Math.min(fromIndex + size, totalElements);
+        List<PlayerResponse> pagedResponses = sortedResponses.subList(fromIndex, toIndex);
+
+        boolean last = page >= totalPages;
+
+        // 7️⃣ Trả về đúng format yêu cầu
+        return new ListResponse<>(
+                pagedResponses,
+                page,
+                size,
+                totalElements,
+                totalPages,
+                last
+        );
+    }
+
+
+    @Override
+    public PlayerResponse findById(Long id, Long workspaceId) {
+        Player player = playerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, id));
+
+        if (!player.getWorkspaceId().equals(workspaceId)) {
+            throw new ResourceNotFoundException(ResourceName.PLAYER, id);
+        }
+
+        return mapPlayerWithElo(player);
+    }
+
+    @Override
+    public PlayerResponse save(PlayerRequest request) {
+        if (request.getWorkspaceId() == null || request.getWorkspaceId() <= 0) {
+            throw new IllegalArgumentException("Workspace ID is required");
+        }
+
+        Player player = playerMapper.requestToEntity(request);
+        player = playerRepository.save(player);
+        return mapPlayerWithElo(player);
+    }
+
+    @Override
+    public PlayerResponse save(Long id, PlayerRequest request) {
+        Player existingPlayer = playerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, id));
+
+        if (!existingPlayer.getWorkspaceId().equals(request.getWorkspaceId())) {
+            throw new ResourceNotFoundException(ResourceName.PLAYER, id);
+        }
+
+        Player updatedPlayer = playerMapper.partialUpdate(existingPlayer, request);
+        updatedPlayer = playerRepository.save(updatedPlayer);
+        return mapPlayerWithElo(updatedPlayer);
+    }
+
+    @Override
+    public void delete(Long id, Long workspaceId) {
+        Player player = playerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, id));
+
+        if (!player.getWorkspaceId().equals(workspaceId)) {
+            throw new ResourceNotFoundException(ResourceName.PLAYER, id);
+        }
+
+        playerRepository.deleteById(id);
+    }
+
+    @Override
+    public void delete(List<Long> ids, Long workspaceId) {
+        List<Player> players = playerRepository.findAllById(ids);
+        List<Player> validPlayers = players.stream()
+                .filter(player -> player.getWorkspaceId().equals(workspaceId))
+                .toList();
+        playerRepository.deleteAll(validPlayers);
+    }
+
+    // ---------------- Helper ----------------
+    private PlayerResponse mapPlayerWithElo(Player player) {
+        PlayerResponse response = playerMapper.entityToResponse(player);
+
+        // Lấy EloHistory mới nhất
+        eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
+                .ifPresentOrElse(
+                        latestHistory -> response.setElo(latestHistory.getNewElo()),
+                        () -> response.setElo(player.getStartElo())
+                );
+
+        return response;
+    }
+}

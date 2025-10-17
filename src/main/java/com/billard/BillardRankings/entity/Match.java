@@ -1,0 +1,67 @@
+package com.billard.BillardRankings.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "matches")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class Match extends BaseEntity {
+    
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+    
+    @Column(name = "tournament_id")
+    private Long tournamentId;
+    
+    @Column(name = "team1_id", nullable = false)
+    private Long team1Id;
+    
+    @Column(name = "team2_id", nullable = false)
+    private Long team2Id;
+    
+    @Column(name = "score_team1")
+    private Integer scoreTeam1 = 0;
+    
+    @Column(name = "score_team2")
+    private Integer scoreTeam2 = 0;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_type")
+    private MatchType matchType = MatchType.GROUP;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_category")
+    private MatchCategory matchCategory = MatchCategory.TOURNAMENT;
+    
+    @Column(name = "bet_amount", precision = 12, scale = 2)
+    private BigDecimal betAmount;
+    
+    @Column(name = "match_date")
+    private LocalDateTime matchDate;
+    
+    @Column(name = "note", columnDefinition = "TEXT")
+    private String note;
+    
+    @Column(name = "winner_id")
+    private Long winnerId;
+    
+    public enum MatchType {
+        GROUP, QUARTERFINAL, SEMIFINAL, FINAL, THIRD_PLACE, LAST16, LAST32
+    }
+    
+    public enum MatchCategory {
+        TOURNAMENT, FUN, BETTING
+    }
+}
