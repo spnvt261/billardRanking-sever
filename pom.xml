@@ -123,6 +123,12 @@
 			<version>1.37.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>2.2.0</version>
+		</dependency>
+
 
 		<!-- SECURITY CRYPTO FOR PASSWORD HASHING -->
 		<dependency>

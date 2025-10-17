@@ -34,4 +34,4 @@ build/
 
 # Ignore local secrets
 .env
-application-local.properties
+.env
