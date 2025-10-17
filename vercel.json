@@ -1,9 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "pom.xml", "use": "@vercel/java" }
+    { "src": "Dockerfile", "use": "@vercel/docker" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/target/*.jar" }
+    { "src": "/(.*)", "dest": "/" }
   ]
 }
