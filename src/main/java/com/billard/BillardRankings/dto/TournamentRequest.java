@@ -29,6 +29,10 @@ public class TournamentRequest {
     
     @NotNull(message = "Tournament type is required")
     private Tournament.TournamentType tournamentType;
+
+    private Tournament.TournamentType tournamentType2;
+
+    private Tournament.TournamentType tournamentType3;
     
     @NotNull(message = "Start date is required")
     private String startDate;

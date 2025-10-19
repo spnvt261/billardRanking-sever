@@ -14,4 +14,5 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long>, J
     List<Tournament> findByWorkspaceId(Long workspaceId);
     // ✅ Thêm method có pageable
     Page<Tournament> findByWorkspaceId(Long workspaceId, Pageable pageable);
+    
 }

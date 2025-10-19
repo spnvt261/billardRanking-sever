@@ -44,4 +44,6 @@ public class Player extends BaseEntity {
     
     @Column(name = "joined_date", nullable = true)
     private LocalDate joinedDate;
+
+
 }

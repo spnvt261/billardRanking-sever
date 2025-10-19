@@ -12,6 +12,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tournaments")
@@ -39,7 +40,14 @@ public class TournamentController {
             @PathVariable("id") Long id,
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(tournamentService.findById(id, workspaceId));
+        try {
+            TournamentResponse resp = tournamentService.findById(id, workspaceId);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            e.printStackTrace(); // Log stack trace
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
 
     @PostMapping
@@ -72,4 +80,13 @@ public class TournamentController {
         tournamentService.delete(ids, workspaceId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
+
+    @GetMapping("/get-all")
+    public ResponseEntity<Map<String, Object>> getAllTournamentsGroupedByQuarter(
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        return ResponseEntity.ok(tournamentService.getAllTournamentsGroupedByQuarter(workspaceId));
+    }
+
+
 }

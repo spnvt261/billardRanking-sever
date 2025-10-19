@@ -87,15 +87,37 @@ public class PlayerServiceImpl implements PlayerService {
 
     @Override
     public PlayerResponse findById(Long id, Long workspaceId) {
-        Player player = playerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, id));
+        // 1️⃣ Lấy toàn bộ player trong workspace
+        List<Player> allPlayers = playerRepository.findByWorkspaceId(workspaceId);
 
-        if (!player.getWorkspaceId().equals(workspaceId)) {
-            throw new ResourceNotFoundException(ResourceName.PLAYER, id);
+        // 2️⃣ Map entity -> DTO và tính Elo
+        List<PlayerResponse> allResponses = allPlayers.stream()
+                .map(this::mapPlayerWithElo)
+                .toList();
+
+        // 3️⃣ Sắp xếp toàn bộ theo Elo giảm dần
+        List<PlayerResponse> sortedResponses = allResponses.stream()
+                .sorted((p1, p2) -> {
+                    int cmp = Integer.compare(p2.getElo(), p1.getElo());
+                    if (cmp == 0) {
+                        return p1.getName().compareToIgnoreCase(p2.getName());
+                    }
+                    return cmp;
+                })
+                .toList();
+
+        // 4️⃣ Gán rank cho tất cả player
+        for (int i = 0; i < sortedResponses.size(); i++) {
+            sortedResponses.get(i).setRank(i + 1);
         }
 
-        return mapPlayerWithElo(player);
+        // 5️⃣ Tìm player theo ID
+        return sortedResponses.stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, id));
     }
+
 
     @Override
     public PlayerResponse save(PlayerRequest request) {
@@ -103,7 +125,12 @@ public class PlayerServiceImpl implements PlayerService {
             throw new IllegalArgumentException("Workspace ID is required");
         }
 
+
         Player player = playerMapper.requestToEntity(request);
+        // Trong cả hai phương thức save:
+        if (player.getAvatarUrl() == null || player.getAvatarUrl().isEmpty()) {
+            player.setAvatarUrl("https://res.cloudinary.com/djeohgclg/image/upload/v1760831936/qg3rplthuila4qdajd19.png");
+        }
         player = playerRepository.save(player);
         return mapPlayerWithElo(player);
     }
@@ -118,6 +145,9 @@ public class PlayerServiceImpl implements PlayerService {
         }
 
         Player updatedPlayer = playerMapper.partialUpdate(existingPlayer, request);
+        if (updatedPlayer.getAvatarUrl() == null || updatedPlayer.getAvatarUrl().isEmpty()) {
+            updatedPlayer.setAvatarUrl("https://res.cloudinary.com/djeohgclg/image/upload/v1760831936/qg3rplthuila4qdajd19.png");
+        }
         updatedPlayer = playerRepository.save(updatedPlayer);
         return mapPlayerWithElo(updatedPlayer);
     }

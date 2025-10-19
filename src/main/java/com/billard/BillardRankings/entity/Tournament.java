@@ -27,6 +27,14 @@ public class Tournament extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "tournament_type", nullable = false)
     private TournamentType tournamentType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tournament_type_2")
+    private TournamentType tournamentType2;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tournament_type_3")
+    private TournamentType tournamentType3;
     
     @Column(name = "start_date", nullable = false)
     private String startDate;
@@ -63,8 +71,7 @@ public class Tournament extends BaseEntity {
     private TournamentStatus status = TournamentStatus.UPCOMING;
     
     public enum TournamentType {
-        ROUND_ROBIN, SINGLE_ELIMINATION, DOUBLE_ELIMINATION, CUSTOM, 
-        ROUND_ROBIN_AND_SINGLE_ELIMINATION, SWEDISH
+        ROUND_ROBIN, SINGLE_ELIMINATION, DOUBLE_ELIMINATION, CUSTOM, SWEDISH, SPECIAL_DEN
     }
     
     public enum TournamentStatus {
