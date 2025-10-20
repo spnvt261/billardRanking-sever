@@ -30,6 +30,9 @@ public class TournamentPlayer extends BaseEntity {
     
     @Column(name = "seed_number")
     private Integer seedNumber;
+
+    @Column(name = "rank_current")
+    private Integer rankCurrent;
     
     @Column(name = "is_active")
     private Boolean isActive = true;

@@ -17,7 +17,6 @@ public class TournamentTeamResponse {
     private Long id;
     private Long tournamentId;
     private Long teamId;
-    private LocalDateTime joinedAt;
     private Integer seedNumber;
     private Boolean isActive;
     private String note;

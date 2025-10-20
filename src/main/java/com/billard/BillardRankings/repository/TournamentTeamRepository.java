@@ -11,4 +11,7 @@ import java.util.List;
 public interface TournamentTeamRepository extends JpaRepository<TournamentTeam, Long>, JpaSpecificationExecutor<TournamentTeam> {
     List<TournamentTeam> findByTournamentId(Long tournamentId);
     List<TournamentTeam> findByTeamId(Long teamId);
+    int countByTournamentId(Long tournamentId);
+    List<TournamentTeam> findByTournamentIdIn(List<Long> tournamentIds);
+
 }

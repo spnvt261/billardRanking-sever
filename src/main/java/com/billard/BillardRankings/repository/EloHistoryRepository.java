@@ -14,4 +14,7 @@ public interface EloHistoryRepository extends JpaRepository<EloHistory, Long>, J
 
     // ✅ Lấy lịch sử mới nhất của một player
     Optional<EloHistory> findFirstByPlayerIdOrderByIdDesc(Long playerId);
+
+    Optional<EloHistory> findTopByWorkspaceIdAndPlayerIdOrderByIdDesc(Long workspaceId, Long playerId);
+
 }

@@ -21,7 +21,9 @@ public class TournamentResponse {
     private Long workspaceId;
     private String name;
     private Tournament.TournamentType tournamentType;
+    private Integer round1PlayersAfter;
     private Tournament.TournamentType tournamentType2;
+    private Integer round2PlayersAfter;
     private Tournament.TournamentType tournamentType3;
     private String startDate;
     private String endDate;
@@ -42,9 +44,13 @@ public class TournamentResponse {
     private String rules;
     private String banner;
     private Tournament.TournamentStatus status;
+    private Tournament.TournamentFormat format;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private Integer numberAttend;
+    private Integer numberTeams;
     // ✅ Thêm danh sách người chơi tham dự
-    private List<PlayerResponse> listPlayer;
+//    private List<PlayerResponse> listPlayer;
+    private List<TeamResponse> listTeam; // ✅ thay cho listPlayer
 }

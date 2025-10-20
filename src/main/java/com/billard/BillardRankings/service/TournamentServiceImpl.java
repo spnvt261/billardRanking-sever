@@ -1,21 +1,12 @@
 package com.billard.BillardRankings.service.impl;
 
-import com.billard.BillardRankings.dto.PlayerResponse;
-import com.billard.BillardRankings.entity.EloHistory;
-import com.billard.BillardRankings.entity.TournamentPlayer;
+import com.billard.BillardRankings.dto.*;
+import com.billard.BillardRankings.entity.*;
 import com.billard.BillardRankings.mapper.PlayerMapper;
-import com.billard.BillardRankings.repository.EloHistoryRepository;
-import com.billard.BillardRankings.repository.TournamentPlayerRepository;
+import com.billard.BillardRankings.repository.*;
 import com.billard.BillardRankings.service.BaseCrudServiceImpl;
-import com.billard.BillardRankings.dto.ListResponse;
-import com.billard.BillardRankings.dto.TournamentRequest;
-import com.billard.BillardRankings.dto.TournamentResponse;
-import com.billard.BillardRankings.entity.Player;
-import com.billard.BillardRankings.entity.Tournament;
 import com.billard.BillardRankings.mapper.GenericMapper;
 import com.billard.BillardRankings.mapper.TournamentMapper;
-import com.billard.BillardRankings.repository.PlayerRepository;
-import com.billard.BillardRankings.repository.TournamentRepository;
 import com.billard.BillardRankings.service.TournamentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,12 +18,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 @Service
@@ -47,6 +42,10 @@ public class TournamentServiceImpl
     private final TournamentPlayerRepository tournamentPlayerRepository; // ✅ thêm
     private final PlayerMapper playerMapper; // map entity -> PlayerResponse
     private final EloHistoryRepository eloHistoryRepository;
+    private final TeamRepository teamRepository;
+    private final TeamPlayerRepository teamPlayerRepository;
+    private final TournamentTeamRepository tournamentTeamRepository;
+
     private static final String[] DEFAULT_BANNERS = {
             "https://res.cloudinary.com/djeohgclg/image/upload/v1760831796/kpyjblssthmy01sxrpwc.jpg",
             "https://res.cloudinary.com/djeohgclg/image/upload/v1760831891/bkqwndeuxax9d4icepaw.jpg"
@@ -99,7 +98,7 @@ public class TournamentServiceImpl
         Page<Tournament> tournaments = tournamentRepository.findByWorkspaceId(workspaceId, pageable);
 
         List<TournamentResponse> responses = tournaments.getContent().stream()
-                .map(this::buildTournamentResponse)
+                .map(tournament -> buildTournamentResponse(tournament, true))
                 .toList();
 
         return new ListResponse<>(responses, tournaments);
@@ -114,47 +113,554 @@ public class TournamentServiceImpl
             throw new IllegalArgumentException("Tournament (id=" + id + ") does not belong to workspace " + workspaceId);
         }
 
-        return buildTournamentResponse(tournament);
+        return buildTournamentResponse(tournament,true);
     }
 
-    // ------------------ Build TournamentResponse kèm listPlayer ------------------
-    private TournamentResponse buildTournamentResponse(Tournament tournament) {
-        if (tournament == null) return null;
 
-        // 1️⃣ Map thông tin cơ bản của tournament
-        TournamentResponse response = tournamentMapper.entityToResponse(tournament);
+//private TournamentResponse buildTournamentResponse(Tournament tournament) {
+//    TournamentResponse response = new TournamentResponse();
+//    response.setId(tournament.getId());
+//    response.setName(tournament.getName());
+//    response.setWorkspaceId(tournament.getWorkspaceId());
+//    response.setFormat(tournament.getFormat());
+//    response.setDescription(tournament.getDescription());
+//    response.setBanner(tournament.getBanner());
+//    response.setStartDate(tournament.getStartDate() != null ? tournament.getStartDate().toString() : null);
+//    response.setEndDate(tournament.getEndDate() != null ? tournament.getEndDate().toString() : null);
+//    response.setCreatedAt(tournament.getCreatedAt());
+//    response.setUpdatedAt(tournament.getUpdatedAt());
+//
+//    // ✅ Winner / Runner-up / Third place (nếu có)
+//    response.setWinnerId(tournament.getWinnerId());
+//    response.setRunnerUpId(tournament.getRunnerUpId());
+//    response.setThirdPlaceId(tournament.getThirdPlaceId());
+//
+//    // ✅ Map chi tiết winner / runner-up / third-place
+//    if (tournament.getWinnerId() != null) {
+//        playerRepository.findById(tournament.getWinnerId())
+//                .map(playerMapper::entityToResponse)
+//                .ifPresent(response::setWinner);
+//    }
+//
+//    if (tournament.getRunnerUpId() != null) {
+//        playerRepository.findById(tournament.getRunnerUpId())
+//                .map(playerMapper::entityToResponse)
+//                .ifPresent(response::setRunnerUp);
+//    }
+//
+//    if (tournament.getThirdPlaceId() != null) {
+//        playerRepository.findById(tournament.getThirdPlaceId())
+//                .map(playerMapper::entityToResponse)
+//                .ifPresent(response::setThirdPlace);
+//    }
+//
+//    // ✅ Lấy danh sách team trong tournament
+//    List<TournamentTeam> tournamentTeams = tournamentTeamRepository.findByTournamentId(tournament.getId());
+//    if (tournamentTeams.isEmpty()) {
+//        response.setListTeam(List.of());
+//        return response;
+//    }
+//
+//    // ✅ Lấy danh sách team entity
+//    List<Long> teamIds = tournamentTeams.stream()
+//            .map(TournamentTeam::getTeamId)
+//            .toList();
+//    List<Team> teams = teamRepository.findAllById(teamIds);
+//
+//    // ✅ Lấy danh sách team_player của các team này
+//    List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(teamIds);
+//
+//    // ✅ Gom nhóm player theo teamId
+//    Map<Long, List<Long>> teamToPlayerIds = teamPlayers.stream()
+//            .collect(Collectors.groupingBy(
+//                    TeamPlayer::getTeamId,
+//                    Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+//            ));
+//
+//    // ✅ Build listTeam
+//    List<TeamResponse> listTeam = new ArrayList<>();
+//    for (Team team : teams) {
+//        TeamResponse teamResponse = new TeamResponse();
+//        teamResponse.setId(team.getId());
+//        teamResponse.setWorkspaceId(team.getWorkspaceId());
+//        teamResponse.setTeamName(team.getTeamName());
+//        teamResponse.setCreatedAt(team.getCreatedAt());
+//        teamResponse.setUpdatedAt(team.getUpdatedAt());
+//
+//        // ✅ Lấy players trong team
+//        List<Long> pids = teamToPlayerIds.getOrDefault(team.getId(), List.of());
+//        List<PlayerResponse> players = new ArrayList<>();
+//        List<TournamentPlayer> tournamentPlayers = tournamentPlayerRepository.findByTournamentId(tournament.getId());
+//        Map<Long, TournamentPlayer> playerIdToTournamentPlayer = tournamentPlayers.stream()
+//                .collect(Collectors.toMap(TournamentPlayer::getPlayerId, tp -> tp));
+//
+//        if (!pids.isEmpty()) {
+//            List<Player> playerEntities = playerRepository.findAllById(pids);
+//            for (Player p : playerEntities) {
+//                PlayerResponse pr = playerMapper.entityToResponse(p);
+//
+//                // ✅ Lấy Elo mới nhất
+//                int elo = eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(p.getId())
+//                        .map(EloHistory::getNewElo)
+//                        .orElse(p.getStartElo() != null ? p.getStartElo() : 0);
+//                pr.setElo(elo);
+//
+//                // ✅ Gán rank & seed từ tournament_player
+//                TournamentPlayer tp = playerIdToTournamentPlayer.get(p.getId());
+//                if (tp != null) {
+//                    pr.setRank(tp.getRankCurrent());
+//                    pr.setSeedNumber(tp.getSeedNumber());
+//                }
+//
+//                players.add(pr);
+//            }
+//        }
+//
+//        teamResponse.setPlayers(players);
+//        listTeam.add(teamResponse);
+//    }
+//
+//    listTeam.sort((t1, t2) -> {
+//        int minSeed1 = t1.getPlayers().stream()
+//                .mapToInt(p -> p.getSeedNumber() != null ? p.getSeedNumber() : Integer.MAX_VALUE)
+//                .min()
+//                .orElse(Integer.MAX_VALUE);
+//
+//        int minSeed2 = t2.getPlayers().stream()
+//                .mapToInt(p -> p.getSeedNumber() != null ? p.getSeedNumber() : Integer.MAX_VALUE)
+//                .min()
+//                .orElse(Integer.MAX_VALUE);
+//
+//        return Integer.compare(minSeed1, minSeed2); // tăng dần seed (1 là top)
+//    });
+//
+//    // ✅ Gán vào response
+//    response.setListTeam(listTeam);
+//
+//    return response;
+//}
+private TournamentResponse buildTournamentResponse(Tournament tournament, boolean loadTeams) {
+    TournamentResponse response = new TournamentResponse();
+    response.setId(tournament.getId());
+    response.setWorkspaceId(tournament.getWorkspaceId());
+    response.setName(tournament.getName());
+    response.setTournamentType(tournament.getTournamentType());
+    response.setRound1PlayersAfter(tournament.getRound1PlayersAfter());
+    response.setTournamentType2(tournament.getTournamentType2());
+    response.setRound2PlayersAfter(tournament.getRound2PlayersAfter());
+    response.setTournamentType3(tournament.getTournamentType3());
+    response.setStartDate(tournament.getStartDate());
+    response.setEndDate(tournament.getEndDate());
+    response.setLocation(tournament.getLocation());
+    response.setPrize(tournament.getPrize());
+    response.setDescription(tournament.getDescription());
+    response.setRules(tournament.getRules());
+    response.setBanner(tournament.getBanner());
+    response.setStatus(tournament.getStatus());
+    response.setFormat(tournament.getFormat());
+    response.setCreatedAt(tournament.getCreatedAt());
+    response.setUpdatedAt(tournament.getUpdatedAt());
 
-        // 2️⃣ Lấy danh sách playerId tham gia tournament
-        List<Long> playerIds = tournamentPlayerRepository.findByTournamentId(tournament.getId()).stream()
-                .map(tp -> tp.getPlayerId())
-                .toList();
+    // ✅ Gán winnerId / runnerUpId / thirdPlaceId
+    response.setWinnerId(tournament.getWinnerId());
+    response.setRunnerUpId(tournament.getRunnerUpId());
+    response.setThirdPlaceId(tournament.getThirdPlaceId());
 
-        if (playerIds.isEmpty()) {
-            response.setListPlayer(List.of());
-            return response;
+    // ✅ Map chi tiết winner / runner-up / third-place
+    if (tournament.getWinnerId() != null) {
+        playerRepository.findById(tournament.getWinnerId())
+                .map(playerMapper::entityToResponse)
+                .ifPresent(response::setWinner);
+    }
+
+    if (tournament.getRunnerUpId() != null) {
+        playerRepository.findById(tournament.getRunnerUpId())
+                .map(playerMapper::entityToResponse)
+                .ifPresent(response::setRunnerUp);
+    }
+
+    if (tournament.getThirdPlaceId() != null) {
+        playerRepository.findById(tournament.getThirdPlaceId())
+                .map(playerMapper::entityToResponse)
+                .ifPresent(response::setThirdPlace);
+    }
+
+    // ✅ Nếu muốn load team (API get-all thì pass false để bỏ team)
+    if (loadTeams) {
+        List<TournamentTeam> tournamentTeams = tournamentTeamRepository.findByTournamentId(tournament.getId());
+        if (!tournamentTeams.isEmpty()) {
+            List<Long> teamIds = tournamentTeams.stream()
+                    .map(TournamentTeam::getTeamId)
+                    .toList();
+            List<Team> teams = teamRepository.findAllById(teamIds);
+
+            List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(teamIds);
+            Map<Long, List<Long>> teamToPlayerIds = teamPlayers.stream()
+                    .collect(Collectors.groupingBy(
+                            TeamPlayer::getTeamId,
+                            Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+                    ));
+
+            List<TeamResponse> listTeam = new ArrayList<>();
+            List<TournamentPlayer> tournamentPlayers = tournamentPlayerRepository.findByTournamentId(tournament.getId());
+            Map<Long, TournamentPlayer> playerIdToTournamentPlayer = tournamentPlayers.stream()
+                    .collect(Collectors.toMap(TournamentPlayer::getPlayerId, tp -> tp));
+
+            for (Team team : teams) {
+                TeamResponse teamResponse = new TeamResponse();
+                teamResponse.setId(team.getId());
+                teamResponse.setWorkspaceId(team.getWorkspaceId());
+                teamResponse.setTeamName(team.getTeamName());
+                teamResponse.setCreatedAt(team.getCreatedAt());
+                teamResponse.setUpdatedAt(team.getUpdatedAt());
+
+                List<Long> pids = teamToPlayerIds.getOrDefault(team.getId(), List.of());
+                List<PlayerResponse> players = new ArrayList<>();
+
+                if (!pids.isEmpty()) {
+                    List<Player> playerEntities = playerRepository.findAllById(pids);
+                    for (Player p : playerEntities) {
+                        PlayerResponse pr = playerMapper.entityToResponse(p);
+                        int elo = eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(p.getId())
+                                .map(EloHistory::getNewElo)
+                                .orElse(p.getStartElo() != null ? p.getStartElo() : 0);
+                        pr.setElo(elo);
+
+                        TournamentPlayer tp = playerIdToTournamentPlayer.get(p.getId());
+                        if (tp != null) {
+                            pr.setRank(tp.getRankCurrent());
+                            pr.setSeedNumber(tp.getSeedNumber());
+                        }
+                        players.add(pr);
+                    }
+                }
+
+                teamResponse.setPlayers(players);
+                listTeam.add(teamResponse);
+            }
+
+            // Sắp xếp listTeam theo seed
+            listTeam.sort((t1, t2) -> {
+                int minSeed1 = t1.getPlayers().stream()
+                        .mapToInt(p -> p.getSeedNumber() != null ? p.getSeedNumber() : Integer.MAX_VALUE)
+                        .min().orElse(Integer.MAX_VALUE);
+
+                int minSeed2 = t2.getPlayers().stream()
+                        .mapToInt(p -> p.getSeedNumber() != null ? p.getSeedNumber() : Integer.MAX_VALUE)
+                        .min().orElse(Integer.MAX_VALUE);
+
+                return Integer.compare(minSeed1, minSeed2);
+            });
+
+            response.setListTeam(listTeam);
+        } else {
+            response.setListTeam(List.of());
+        }
+    }
+
+    return response;
+}
+
+    private TournamentResponse buildTournamentSummary(Tournament tournament) {
+        TournamentResponse response = new TournamentResponse();
+
+        response.setId(tournament.getId());
+        response.setWorkspaceId(tournament.getWorkspaceId());
+        response.setName(tournament.getName());
+        response.setTournamentType(tournament.getTournamentType());
+        response.setTournamentType2(tournament.getTournamentType2());
+        response.setTournamentType3(tournament.getTournamentType3());
+        response.setRound1PlayersAfter(tournament.getRound1PlayersAfter());
+        response.setRound2PlayersAfter(tournament.getRound2PlayersAfter());
+        response.setStartDate(tournament.getStartDate());
+        response.setEndDate(tournament.getEndDate());
+        response.setLocation(tournament.getLocation());
+        response.setPrize(tournament.getPrize());
+        response.setBanner(tournament.getBanner());
+        response.setDescription(tournament.getDescription());
+        response.setRules(tournament.getRules());
+        response.setStatus(tournament.getStatus());
+        response.setFormat(tournament.getFormat());
+        response.setCreatedAt(tournament.getCreatedAt());
+        response.setUpdatedAt(tournament.getUpdatedAt());
+        response.setWinnerId(tournament.getWinnerId());
+        response.setRunnerUpId(tournament.getRunnerUpId());
+        response.setThirdPlaceId(tournament.getThirdPlaceId());
+
+        // ✅ Đếm số người tham dự trong bảng tournament_players
+        int numberAttend = tournamentPlayerRepository.countByTournamentId(tournament.getId());
+        response.setNumberAttend(numberAttend);
+
+        // ✅ Đếm số đội trong bảng tournament_teams
+        int numberTeams = tournamentTeamRepository.countByTournamentId(tournament.getId());
+        response.setNumberTeams(numberTeams);
+
+        return response;
+    }
+
+
+    private void handleTournamentPlayers(Tournament tournament, List<Long> playerIds) {
+        if (playerIds == null || playerIds.isEmpty()) return;
+
+        Long workspaceId = tournament.getWorkspaceId();
+
+        // --- A) Tính Elo & rank tổng thể cho toàn workspace ---
+        List<Player> allPlayers = playerRepository.findByWorkspaceId(workspaceId);
+        List<PlayerResponse> allResponses = new ArrayList<>();
+
+        for (Player p : allPlayers) {
+            PlayerResponse pr = playerMapper.entityToResponse(p);
+            int elo = eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(p.getId())
+                    .map(EloHistory::getNewElo)
+                    .orElse(p.getStartElo() != null ? p.getStartElo() : 0);
+            pr.setElo(elo);
+            allResponses.add(pr);
         }
 
-        // 3️⃣ Lấy player entity từ DB
-        List<Player> players = playerRepository.findAllById(playerIds);
+        // sắp xếp toàn workspace theo Elo ↓
+        allResponses.sort((p1, p2) -> {
+            int e1 = p1.getElo() != null ? p1.getElo() : 0;
+            int e2 = p2.getElo() != null ? p2.getElo() : 0;
+            int cmp = Integer.compare(e2, e1);
+            if (cmp == 0) {
+                String n1 = p1.getName() != null ? p1.getName() : "";
+                String n2 = p2.getName() != null ? p2.getName() : "";
+                return n1.compareToIgnoreCase(n2);
+            }
+            return cmp;
+        });
 
-        // 4️⃣ Map Player -> PlayerResponse và tính Elo mới nhất
-        List<PlayerResponse> listPlayer = new ArrayList<>();
-        for (Player player : players) {
+        Map<Long, Integer> playerIdToOverallRank = new LinkedHashMap<>();
+        for (int i = 0; i < allResponses.size(); i++) {
+            playerIdToOverallRank.put(allResponses.get(i).getId(), i + 1);
+        }
+
+        // --- B) Tính Elo & seedNumber trong tập participants ---
+        List<PlayerResponse> participants = new ArrayList<>();
+        for (Long pid : playerIds) {
+            Player player = playerRepository.findById(pid)
+                    .orElseThrow(() -> new IllegalArgumentException("Player not found (id=" + pid + ")"));
+
+            if (!player.getWorkspaceId().equals(workspaceId)) {
+                throw new IllegalArgumentException("Player " + pid + " không thuộc workspace của tournament");
+            }
+
             PlayerResponse pr = playerMapper.entityToResponse(player);
-
-            // Lấy EloHistory mới nhất
             int elo = eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
                     .map(EloHistory::getNewElo)
                     .orElse(player.getStartElo() != null ? player.getStartElo() : 0);
             pr.setElo(elo);
-
-            listPlayer.add(pr);
+            participants.add(pr);
         }
 
-        // 5️⃣ Sắp xếp giảm dần theo Elo, nếu bằng thì theo tên
-        listPlayer.sort((p1, p2) -> {
-            int elo1 = p1.getElo() != null ? p1.getElo() : 0;
-            int elo2 = p2.getElo() != null ? p2.getElo() : 0;
+        // Sắp xếp participants theo Elo ↓
+        participants.sort((p1, p2) -> {
+            int e1 = p1.getElo() != null ? p1.getElo() : 0;
+            int e2 = p2.getElo() != null ? p2.getElo() : 0;
+            int cmp = Integer.compare(e2, e1);
+            if (cmp == 0) {
+                String n1 = p1.getName() != null ? p1.getName() : "";
+                String n2 = p2.getName() != null ? p2.getName() : "";
+                return n1.compareToIgnoreCase(n2);
+            }
+            return cmp;
+        });
+
+        Map<Long, Integer> playerIdToSeed = new LinkedHashMap<>();
+        for (int i = 0; i < participants.size(); i++) {
+            playerIdToSeed.put(participants.get(i).getId(), i + 1);
+        }
+
+        // --- C) Lưu toàn bộ tournament_players ---
+        List<TournamentPlayer> tpList = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Long pid : playerIds) {
+            Player player = playerRepository.findById(pid)
+                    .orElseThrow(() -> new IllegalArgumentException("Player not found (id=" + pid + ")"));
+
+            TournamentPlayer tp = new TournamentPlayer();
+            tp.setTournamentId(tournament.getId());
+            tp.setPlayerId(player.getId());
+            tp.setRankCurrent(playerIdToOverallRank.get(player.getId())); // rank tổng thể
+            tp.setSeedNumber(playerIdToSeed.get(player.getId()));          // seed trong giải
+            tp.setJoinedAt(now);
+            tp.setIsActive(true);
+            tpList.add(tp);
+        }
+
+        tournamentPlayerRepository.saveAll(tpList);
+    }
+
+
+    @Override
+    @Transactional
+    public TournamentResponse save(TournamentRequest request) {
+        // 0️⃣ Gán banner mặc định nếu banner null hoặc trống
+        if (request.getBanner() == null || request.getBanner().isBlank()) {
+            int randomIndex = (int) (Math.random());
+            request.setBanner(DEFAULT_BANNERS[randomIndex]);
+        }
+        // ✅ Gán giá trị mặc định cho format nếu null
+        if (request.getFormat() == null) {
+            request.setFormat(Tournament.TournamentFormat.SINGLE);
+        }
+
+        // 1️⃣ Validate winner/runner-up/third-place
+        validatePlayersWorkspace(request);
+
+        // 2️⃣ Tạo Tournament (chưa có id)
+        Tournament tournament = tournamentMapper.requestToEntity(request);
+        Tournament savedTournament = tournamentRepository.save(tournament);
+
+        // ⚡ Nếu format = SINGLE → tạo team cho từng player
+        if (savedTournament.getFormat() == Tournament.TournamentFormat.SINGLE) {
+            createTeamsForSingleTournament(savedTournament, request.getPlayerIds());
+        }
+
+        // 3️⃣ Tính rankCurrent + seedNumber và thêm vào tournament_players
+        handleTournamentPlayers(savedTournament, request.getPlayerIds());
+
+        // 4️⃣ Build response kèm list player
+        return buildTournamentResponse(savedTournament,true);
+    }
+
+    private void createTeamsForSingleTournament(Tournament tournament, List<Long> playerIds) {
+        if (playerIds == null || playerIds.isEmpty()) return;
+
+        Long workspaceId = tournament.getWorkspaceId();
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Team> newTeams = new ArrayList<>();
+        List<TeamPlayer> newTeamPlayers = new ArrayList<>();
+        List<TournamentTeam> newTournamentTeams = new ArrayList<>();
+
+        for (Long playerId : playerIds) {
+            Player player = playerRepository.findById(playerId)
+                    .orElseThrow(() -> new IllegalArgumentException("Player not found (id=" + playerId + ")"));
+
+            // 1️⃣ Tạo team mới cho player
+            Team team = new Team()
+                    .setWorkspaceId(workspaceId)
+                    .setTeamName(player.getName() != null
+                            ? player.getName() + " Team"
+                            : "Player " + playerId + " Team");
+            teamRepository.save(team);
+
+            // 2️⃣ Tạo team_player (liên kết player với team)
+            TeamPlayer tp = new TeamPlayer()
+                    .setWorkspaceId(workspaceId)
+                    .setTeamId(team.getId())
+                    .setPlayerId(playerId)
+                    .setJoinedAt(now)
+                    .setIsCaptain(true); // mỗi team 1 người, là captain luôn
+            newTeamPlayers.add(tp);
+
+            // 3️⃣ Tạo tournament_team
+            TournamentTeam tt = new TournamentTeam()
+                    .setTournamentId(tournament.getId())
+                    .setTeamId(team.getId())
+                    .setIsActive(true);
+            newTournamentTeams.add(tt);
+        }
+
+        // ✅ Lưu tất cả vào DB
+        teamPlayerRepository.saveAll(newTeamPlayers);
+        tournamentTeamRepository.saveAll(newTournamentTeams);
+    }
+
+
+    @Override
+    @Transactional
+    public TournamentResponse save(Long id, TournamentRequest request) {
+        // 1️⃣ Kiểm tra tournament tồn tại
+        validatePlayersWorkspace(request);
+
+        Tournament existing = tournamentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Tournament not found (id=" + id + ")"));
+
+        // 2️⃣ Cập nhật các thông tin cơ bản (tên, ngày, mô tả, v.v.)
+        tournamentMapper.updateEntityFromRequest(request, existing);
+        Tournament saved = tournamentRepository.save(existing);
+        // ✅ Gán giá trị mặc định cho format nếu null
+        if (request.getFormat() == null) {
+            request.setFormat(Tournament.TournamentFormat.SINGLE);
+        }
+
+        // 3️⃣ Xử lý playerIds nếu có
+        if (request.getPlayerIds() != null && !request.getPlayerIds().isEmpty()) {
+
+            // Lấy danh sách player hiện có trong tournament
+            List<TournamentPlayer> existingPlayers = tournamentPlayerRepository.findByTournamentId(saved.getId());
+            Set<Long> existingPlayerIds = existingPlayers.stream()
+                    .map(TournamentPlayer::getPlayerId)
+                    .collect(Collectors.toSet());
+
+            // Lọc ra các player mới
+            List<Long> newPlayerIds = request.getPlayerIds().stream()
+                    .filter(idPlayer -> !existingPlayerIds.contains(idPlayer))
+                    .toList();
+
+            if (!newPlayerIds.isEmpty()) {
+                // ⚡ Nếu format = SINGLE → tạo team cho các player mới
+                if (saved.getFormat() == Tournament.TournamentFormat.SINGLE) {
+                    createTeamsForSingleTournament(saved, newPlayerIds);
+                }
+                // ✅ Lấy toàn bộ player trong workspace để tính rank hiện tại
+                List<Player> allPlayers = playerRepository.findByWorkspaceId(saved.getWorkspaceId());
+                Map<Long, Integer> playerRankMap = calculatePlayerRanks(allPlayers);
+
+                // ✅ Lấy toàn bộ player hiện có trong giải + player mới → để tính seed
+                List<Player> allJoinedPlayers = playerRepository.findAllById(
+                        Stream.concat(existingPlayerIds.stream(), newPlayerIds.stream())
+                                .toList()
+                );
+
+                // Sắp xếp giảm dần theo Elo → seed 1, 2, 3...
+                allJoinedPlayers.sort((p1, p2) -> {
+                    int elo1 = getPlayerElo(p1);
+                    int elo2 = getPlayerElo(p2);
+                    return Integer.compare(elo2, elo1);
+                });
+
+                int seed = 1;
+                for (Player p : allJoinedPlayers) {
+                    TournamentPlayer tp = tournamentPlayerRepository
+                            .findByTournamentIdAndPlayerId(saved.getId(), p.getId())
+                            .orElse(null);
+
+                    if (tp == null) {
+                        // Player mới → thêm mới vào bảng
+                        tp = new TournamentPlayer()
+                                .setTournamentId(saved.getId())
+                                .setPlayerId(p.getId())
+                                .setJoinedAt(LocalDateTime.now())
+                                .setIsActive(true);
+                    }
+
+                    // Cập nhật rank & seed
+                    tp.setRankCurrent(playerRankMap.getOrDefault(p.getId(), 0));
+                    tp.setSeedNumber(seed++);
+                    tournamentPlayerRepository.save(tp);
+                }
+            }
+        }
+
+        // 4️⃣ Trả về response
+        return buildTournamentResponse(saved,true);
+    }
+
+    private int getPlayerElo(Player player) {
+        return eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
+                .map(EloHistory::getNewElo)
+                .orElse(player.getStartElo() != null ? player.getStartElo() : 0);
+    }
+
+    private Map<Long, Integer> calculatePlayerRanks(List<Player> allPlayers) {
+        List<Player> sorted = new ArrayList<>(allPlayers);
+        sorted.sort((p1, p2) -> {
+            int elo1 = getPlayerElo(p1);
+            int elo2 = getPlayerElo(p2);
             int cmp = Integer.compare(elo2, elo1);
             if (cmp == 0) {
                 return p1.getName().compareToIgnoreCase(p2.getName());
@@ -162,95 +668,21 @@ public class TournamentServiceImpl
             return cmp;
         });
 
-        // 6️⃣ Gán rank
-        for (int i = 0; i < listPlayer.size(); i++) {
-            listPlayer.get(i).setRank(i + 1);
+        Map<Long, Integer> rankMap = new LinkedHashMap<>();
+        for (int i = 0; i < sorted.size(); i++) {
+            rankMap.put(sorted.get(i).getId(), i + 1);
         }
-
-        // 7️⃣ Gán danh sách player vào response
-        response.setListPlayer(listPlayer);
-
-        // 8️⃣ Map winner/runner-up/third-place với Elo mới nhất
-        if (response.getWinnerId() != null) {
-            playerRepository.findById(response.getWinnerId())
-                    .ifPresent(player -> {
-                        PlayerResponse pr = playerMapper.entityToResponse(player);
-                        pr.setElo(eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
-                                .map(EloHistory::getNewElo)
-                                .orElse(player.getStartElo() != null ? player.getStartElo() : 0));
-                        response.setWinner(pr);
-                    });
-        }
-        if (response.getRunnerUpId() != null) {
-            playerRepository.findById(response.getRunnerUpId())
-                    .ifPresent(player -> {
-                        PlayerResponse pr = playerMapper.entityToResponse(player);
-                        pr.setElo(eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
-                                .map(EloHistory::getNewElo)
-                                .orElse(player.getStartElo() != null ? player.getStartElo() : 0));
-                        response.setRunnerUp(pr);
-                    });
-        }
-        if (response.getThirdPlaceId() != null) {
-            playerRepository.findById(response.getThirdPlaceId())
-                    .ifPresent(player -> {
-                        PlayerResponse pr = playerMapper.entityToResponse(player);
-                        pr.setElo(eloHistoryRepository.findFirstByPlayerIdOrderByIdDesc(player.getId())
-                                .map(EloHistory::getNewElo)
-                                .orElse(player.getStartElo() != null ? player.getStartElo() : 0));
-                        response.setThirdPlace(pr);
-                    });
-        }
-
-        return response;
+        return rankMap;
     }
 
 
-    // ✅ Ghi đè lại phương thức save() để thêm validate workspace player
-    @Override
-    @Transactional
-    public TournamentResponse save(TournamentRequest request) {
-        // 0️⃣ Gán banner mặc định nếu banner null hoặc trống
-        if (request.getBanner() == null || request.getBanner().isBlank()) {
-            int randomIndex = (int) (Math.random() * DEFAULT_BANNERS.length);
-            request.setBanner(DEFAULT_BANNERS[randomIndex]);
-        }
-
-        // 1️⃣ Validate winner/runner-up/third-place
-        validatePlayersWorkspace(request);
-
-        // 2️⃣ Tạo Tournament
-        Tournament tournament = tournamentMapper.requestToEntity(request);
-        Tournament savedTournament = tournamentRepository.save(tournament);
-
-        // 3️⃣ Thêm player vào tournament_player nếu có
-        if (request.getPlayerIds() != null && !request.getPlayerIds().isEmpty()) {
-            for (Long playerId : request.getPlayerIds()) {
-                Player player = playerRepository.findById(playerId)
-                        .orElseThrow(() -> new IllegalArgumentException("Player not found (id=" + playerId + ")"));
-
-                if (!player.getWorkspaceId().equals(savedTournament.getWorkspaceId())) {
-                    throw new IllegalArgumentException(
-                            "Player " + playerId + " không thuộc workspace của tournament");
-                }
-
-                TournamentPlayer tp = new TournamentPlayer();
-                tp.setTournamentId(savedTournament.getId());
-                tp.setPlayerId(player.getId());
-                tournamentPlayerRepository.save(tp);
-            }
-        }
-
-        // 4️⃣ Build response kèm list player
-        return buildTournamentResponse(savedTournament);
-    }
 
 
-    @Override
-    public TournamentResponse save(Long id, TournamentRequest request) {
-        validatePlayersWorkspace(request);
-        return super.save(id, request);
-    }
+//    @Override
+//    public TournamentResponse save(Long id, TournamentRequest request) {
+//        validatePlayersWorkspace(request);
+//        return super.save(id, request);
+//    }
 
     @Override
     public void delete(Long aLong, Long workspaceId) {
@@ -286,88 +718,218 @@ public class TournamentServiceImpl
             throw new IllegalArgumentException(role + " player (id=" + playerId + ") does not belong to workspace " + workspaceId);
         }
     }
-    @Override
-    public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
-        List<com.billard.BillardRankings.entity.Tournament> entities = tournamentRepository.findByWorkspaceId(workspaceId);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+//    @Override
+//    public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
+//        List<Tournament> entities = tournamentRepository.findByWorkspaceId(workspaceId);
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+//
+//        Map<String, List<TournamentResponse>> normalGrouped = new LinkedHashMap<>();
+//        List<TournamentResponse> specialDenList = new ArrayList<>();
+//        List<String> errors = new ArrayList<>();
+//
+//        // ✅ Lấy sẵn toàn bộ tournamentId
+//        List<Long> tournamentIds = entities.stream().map(Tournament::getId).toList();
+//
+//        // ✅ Truy vấn để đếm người & team một lần
+//        List<TournamentTeam> allTeams = tournamentTeamRepository.findByTournamentIdIn(tournamentIds);
+//        List<TournamentPlayer> allPlayers = tournamentPlayerRepository.findByTournamentIdIn(tournamentIds);
+//
+//        // Gom nhóm đếm
+//        Map<Long, Long> teamCountMap = allTeams.stream()
+//                .collect(Collectors.groupingBy(TournamentTeam::getTournamentId, Collectors.counting()));
+//
+//        Map<Long, Long> playerCountMap = allPlayers.stream()
+//                .collect(Collectors.groupingBy(TournamentPlayer::getTournamentId, Collectors.counting()));
+//
+//
+//        // ✅ 1️⃣ Build summary response
+//        List<TournamentResponse> responses = new ArrayList<>();
+//        for (Tournament ent : entities) {
+//            try {
+//                TournamentResponse resp = new TournamentResponse();
+//                resp.setId(ent.getId());
+//                resp.setWorkspaceId(ent.getWorkspaceId());
+//                resp.setName(ent.getName());
+//                resp.setBanner(ent.getBanner());
+//                resp.setTournamentType(ent.getTournamentType());
+//                resp.setStartDate(ent.getStartDate());
+//                resp.setEndDate(ent.getEndDate());
+//                resp.setLocation(ent.getLocation());
+//                resp.setPrize(ent.getPrize());
+//                resp.setStatus(ent.getStatus());
+//                resp.setFormat(ent.getFormat());
+//                resp.setCreatedAt(ent.getCreatedAt());
+//                resp.setUpdatedAt(ent.getUpdatedAt());
+//
+//                // ✅ Thêm số lượng team & người
+//                resp.setNumberTeams(teamCountMap.getOrDefault(ent.getId(), 0L).intValue());
+//                resp.setNumberAttend(playerCountMap.getOrDefault(ent.getId(), 0L).intValue());
+//
+//                responses.add(resp);
+//            } catch (Exception e) {
+//                String msg = String.format("Error mapping tournament id=%s: %s",
+//                        ent == null ? "null" : String.valueOf(ent.getId()), e.toString());
+//                System.err.println(msg);
+//                errors.add(msg);
+//            }
+//        }
+//
+//        // ✅ 2️⃣ Sắp xếp giảm dần theo startDate
+//        responses.sort((a, b) -> {
+//            LocalDate da = parseDateSafe(a.getStartDate(), formatter);
+//            LocalDate db = parseDateSafe(b.getStartDate(), formatter);
+//            if (da == null && db == null) return 0;
+//            if (da == null) return 1;
+//            if (db == null) return -1;
+//            return db.compareTo(da);
+//        });
+//
+//        // ✅ 3️⃣ Phân nhóm theo quý
+//        for (TournamentResponse t : responses) {
+//            if (t == null) continue;
+//
+//            String typeStr = "";
+//            try {
+//                Object typeObj = t.getTournamentType();
+//                if (typeObj != null) {
+//                    typeStr = (typeObj instanceof Enum) ? ((Enum<?>) typeObj).name() : typeObj.toString();
+//                }
+//            } catch (Exception e) {
+//                System.err.println("Error reading tournamentType for id=" + t.getId() + ": " + e);
+//            }
+//
+//            if ("SPECIAL_DEN".equalsIgnoreCase(typeStr)) {
+//                specialDenList.add(t);
+//                continue;
+//            }
+//
+//            LocalDate date = parseDateSafe(t.getStartDate(), formatter);
+//            String key;
+//            if (date == null) {
+//                key = "INVALID_DATE";
+//            } else {
+//                int month = date.getMonthValue();
+//                int year = date.getYear();
+//                String quarter = (month <= 3) ? "Q1" : (month <= 6) ? "Q2" : (month <= 9) ? "Q3" : "Q4";
+//                key = quarter + "/" + year;
+//            }
+//
+//            normalGrouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t);
+//        }
+//
+//        // ✅ 4️⃣ Sắp xếp trong từng quý
+//        for (List<TournamentResponse> list : normalGrouped.values()) {
+//            list.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+//        }
+//
+//        // ✅ 5️⃣ Sắp xếp SPECIAL_DEN giảm dần
+//        specialDenList.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+//
+//        // ✅ 6️⃣ Trả kết quả cuối
+//        Map<String, Object> result = new LinkedHashMap<>();
+//        result.put("NormalTournament", normalGrouped);
+//        result.put("SpecialDen", specialDenList);
+//        if (!errors.isEmpty()) result.put("errors", errors);
+//
+//        return result;
+//    }
+@Override
+public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
+    List<com.billard.BillardRankings.entity.Tournament> entities = tournamentRepository.findByWorkspaceId(workspaceId);
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        Map<String, List<TournamentResponse>> normalGrouped = new LinkedHashMap<>();
-        List<TournamentResponse> specialDenList = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
+    Map<String, List<TournamentResponse>> normalGrouped = new LinkedHashMap<>();
+    List<TournamentResponse> specialDenList = new ArrayList<>();
+    List<String> errors = new ArrayList<>();
+    // ✅ Lấy sẵn toàn bộ tournamentId
+        List<Long> tournamentIds = entities.stream().map(Tournament::getId).toList();
 
-        // 1️⃣ Mapping an toàn
-        List<TournamentResponse> responses = new ArrayList<>();
-        for (com.billard.BillardRankings.entity.Tournament ent : entities) {
-            try {
-                TournamentResponse resp = buildTournamentResponse(ent);
-                responses.add(resp);
-            } catch (Exception e) {
-                String msg = String.format("Error mapping tournament id=%s: %s",
-                        ent == null ? "null" : String.valueOf(ent.getId()), e.toString());
-                System.err.println(msg);
-                errors.add(msg);
-            }
+//        // ✅ Truy vấn để đếm người & team một lần
+        List<TournamentTeam> allTeams = tournamentTeamRepository.findByTournamentIdIn(tournamentIds);
+        List<TournamentPlayer> allPlayers = tournamentPlayerRepository.findByTournamentIdIn(tournamentIds);
+    // Gom nhóm đếm
+        Map<Long, Long> teamCountMap = allTeams.stream()
+                .collect(Collectors.groupingBy(TournamentTeam::getTournamentId, Collectors.counting()));
+
+        Map<Long, Long> playerCountMap = allPlayers.stream()
+                .collect(Collectors.groupingBy(TournamentPlayer::getTournamentId, Collectors.counting()));
+    // 1️⃣ Mapping an toàn, không load listTeam
+    List<TournamentResponse> responses = new ArrayList<>();
+    for (com.billard.BillardRankings.entity.Tournament ent : entities) {
+        try {
+            TournamentResponse resp = buildTournamentResponse(ent, false); // ❌ bỏ listTeam
+            responses.add(resp);
+            resp.setNumberTeams(teamCountMap.getOrDefault(ent.getId(), 0L).intValue());
+            resp.setNumberAttend(playerCountMap.getOrDefault(ent.getId(), 0L).intValue());
+        } catch (Exception e) {
+            String msg = String.format("Error mapping tournament id=%s: %s",
+                    ent == null ? "null" : String.valueOf(ent.getId()), e.toString());
+            System.err.println(msg);
+            errors.add(msg);
         }
-
-        // 2️⃣ Sắp xếp giảm dần theo startDate
-        responses.sort((a, b) -> {
-            LocalDate da = parseDateSafe(a.getStartDate(), formatter);
-            LocalDate db = parseDateSafe(b.getStartDate(), formatter);
-            if (da == null && db == null) return 0;
-            if (da == null) return 1;
-            if (db == null) return -1;
-            return db.compareTo(da);
-        });
-
-        // 3️⃣ Phân nhóm
-        for (TournamentResponse t : responses) {
-            if (t == null) continue;
-
-            String typeStr = "";
-            try {
-                Object typeObj = t.getTournamentType();
-                if (typeObj != null) {
-                    typeStr = (typeObj instanceof Enum) ? ((Enum<?>) typeObj).name() : typeObj.toString();
-                }
-            } catch (Exception e) {
-                System.err.println("Error reading tournamentType for id=" + t.getId() + ": " + e.toString());
-            }
-
-            if ("SPECIAL_DEN".equalsIgnoreCase(typeStr)) {
-                specialDenList.add(t);
-                continue;
-            }
-
-            LocalDate date = parseDateSafe(t.getStartDate(), formatter);
-            String key;
-            if (date == null) {
-                key = "INVALID_DATE";
-            } else {
-                int month = date.getMonthValue();
-                int year = date.getYear();
-                String quarter = (month <= 3) ? "Q1" : (month <= 6) ? "Q2" : (month <= 9) ? "Q3" : "Q4";
-                key = quarter + "/" + year;
-            }
-
-            normalGrouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t);
-        }
-
-        // ✅ 4️⃣ Sắp xếp từng list trong mỗi quý giảm dần theo id
-        for (List<TournamentResponse> list : normalGrouped.values()) {
-            list.sort((a, b) -> Long.compare(b.getId(), a.getId())); // ↓ giảm dần theo id
-        }
-
-        // ✅ 5️⃣ Sắp xếp danh sách SPECIAL_DEN giảm dần theo id
-        specialDenList.sort((a, b) -> Long.compare(b.getId(), a.getId()));
-
-        // 6️⃣ Trả kết quả cuối cùng
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("NormalTournament", normalGrouped);
-        result.put("SpecialDen", specialDenList);
-        if (!errors.isEmpty()) result.put("errors", errors);
-
-        return result;
     }
+
+    // 2️⃣ Sắp xếp giảm dần theo startDate
+    responses.sort((a, b) -> {
+        LocalDate da = parseDateSafe(a.getStartDate(), formatter);
+        LocalDate db = parseDateSafe(b.getStartDate(), formatter);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return db.compareTo(da);
+    });
+
+    // 3️⃣ Phân nhóm
+    for (TournamentResponse t : responses) {
+        if (t == null) continue;
+
+        String typeStr = "";
+        try {
+            Object typeObj = t.getTournamentType();
+            if (typeObj != null) {
+                typeStr = (typeObj instanceof Enum) ? ((Enum<?>) typeObj).name() : typeObj.toString();
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading tournamentType for id=" + t.getId() + ": " + e.toString());
+        }
+
+        if ("SPECIAL_DEN".equalsIgnoreCase(typeStr)) {
+            specialDenList.add(t);
+            continue;
+        }
+
+        LocalDate date = parseDateSafe(t.getStartDate(), formatter);
+        String key;
+        if (date == null) {
+            key = "INVALID_DATE";
+        } else {
+            int month = date.getMonthValue();
+            int year = date.getYear();
+            String quarter = (month <= 3) ? "Q1" : (month <= 6) ? "Q2" : (month <= 9) ? "Q3" : "Q4";
+            key = quarter + "/" + year;
+        }
+
+        normalGrouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t);
+    }
+
+    // 4️⃣ Sắp xếp từng list trong mỗi quý giảm dần theo id
+    for (List<TournamentResponse> list : normalGrouped.values()) {
+        list.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+    }
+
+    // 5️⃣ Sắp xếp danh sách SPECIAL_DEN giảm dần theo id
+    specialDenList.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+
+    // 6️⃣ Trả kết quả cuối cùng
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("NormalTournament", normalGrouped);
+    result.put("SpecialDen", specialDenList);
+    if (!errors.isEmpty()) result.put("errors", errors);
+
+    return result;
+}
+
+
 
 
 

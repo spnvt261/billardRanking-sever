@@ -30,7 +30,11 @@ public class TournamentRequest {
     @NotNull(message = "Tournament type is required")
     private Tournament.TournamentType tournamentType;
 
+    private Integer round1PlayersAfter;
+
     private Tournament.TournamentType tournamentType2;
+
+    private Integer round2PlayersAfter;
 
     private Tournament.TournamentType tournamentType3;
     
@@ -41,7 +45,7 @@ public class TournamentRequest {
     
     @Size(max = 255, message = "Location must not exceed 255 characters")
     private String location;
-    
+//
     @NotBlank(message = "Prize is required")
     @Size(max = 100, message = "Prize must not exceed 100 characters")
     private Integer prize;
@@ -57,6 +61,8 @@ public class TournamentRequest {
     private String banner;
     
     private Tournament.TournamentStatus status;
+
+    private Tournament.TournamentFormat format;
 
     // ✅ Thêm list playerIds
     private List<Long> playerIds;

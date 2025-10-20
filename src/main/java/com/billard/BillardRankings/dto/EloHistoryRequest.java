@@ -27,13 +27,13 @@ public class EloHistoryRequest {
 
     private Long tournamentId;
     
-    @NotNull(message = "Old ELO is required")
-    private Integer oldElo;
+//    @NotNull(message = "Old ELO is required")
+//    private Integer oldElo;
     
     @NotNull(message = "ELO change is required")
     private Integer eloChange;
     
-    @NotNull(message = "New ELO is required")
-    private Integer newElo;
+//    @NotNull(message = "New ELO is required")
+//    private Integer newElo;
 
 }

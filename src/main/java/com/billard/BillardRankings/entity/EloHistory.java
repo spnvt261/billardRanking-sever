@@ -28,7 +28,7 @@ public class EloHistory extends BaseEntity {
     private Long matchId;
 
     @Column(name = "tournament_id")
-    private Long tounamentId;
+    private Long tournamentId;
     
     @Column(name = "old_elo", nullable = false)
     private Integer oldElo;

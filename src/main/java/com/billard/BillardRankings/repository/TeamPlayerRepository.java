@@ -11,4 +11,6 @@ import java.util.List;
 public interface TeamPlayerRepository extends JpaRepository<TeamPlayer, Long>, JpaSpecificationExecutor<TeamPlayer> {
     List<TeamPlayer> findByTeamId(Long teamId);
     List<TeamPlayer> findByPlayerId(Long playerId);
+    List<TeamPlayer> findByTeamIdIn(List<Long> teamIds);
+
 }

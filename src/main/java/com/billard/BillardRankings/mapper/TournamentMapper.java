@@ -32,6 +32,14 @@ public abstract class TournamentMapper implements GenericMapper<Tournament, Tour
     @Override
     public abstract List<TournamentResponse> entityToResponse(List<Tournament> entities);
 
+
+
+    // ⚡️👉 Thêm hàm này để dùng cho update trong service
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    public abstract void updateEntityFromRequest(TournamentRequest request, @MappingTarget Tournament entity);
+
+
+
     @Override
     public TournamentResponse entityToResponse(Tournament entity) {
         if (entity == null) {
@@ -54,6 +62,7 @@ public abstract class TournamentMapper implements GenericMapper<Tournament, Tour
                 .setRules(entity.getRules())
                 .setBanner(entity.getBanner())
                 .setStatus(entity.getStatus())
+                .setFormat(entity.getFormat())
                 .setCreatedAt(entity.getCreatedAt())
                 .setUpdatedAt(entity.getUpdatedAt());
 

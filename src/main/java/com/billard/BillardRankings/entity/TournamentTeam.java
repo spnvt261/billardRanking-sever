@@ -24,12 +24,7 @@ public class TournamentTeam extends BaseEntity {
     
     @Column(name = "team_id", nullable = false)
     private Long teamId;
-    
-    @Column(name = "joined_at")
-    private LocalDateTime joinedAt;
-    
-    @Column(name = "seed_number")
-    private Integer seedNumber;
+
     
     @Column(name = "is_active")
     private Boolean isActive = true;

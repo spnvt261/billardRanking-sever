@@ -21,9 +21,7 @@ public class TournamentTeamRequest {
     
     @NotNull(message = "Team ID is required")
     private Long teamId;
-    
-    private LocalDateTime joinedAt;
-    private Integer seedNumber;
+
     private Boolean isActive = true;
     private String note;
 }

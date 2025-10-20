@@ -26,4 +26,5 @@ public class PlayerResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer rank;
+    private Integer seedNumber;
 }

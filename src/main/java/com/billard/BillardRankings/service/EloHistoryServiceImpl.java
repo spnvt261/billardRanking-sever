@@ -34,7 +34,7 @@ public class EloHistoryServiceImpl
 
     @Override
     public EloHistoryResponse save(EloHistoryRequest request) {
-        // Kiểm tra workspaceId của player
+        // 1️⃣ Kiểm tra player
         Player player = playerRepository.findById(request.getPlayerId())
                 .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, request.getPlayerId()));
 
@@ -42,7 +42,7 @@ public class EloHistoryServiceImpl
             throw new IllegalArgumentException("Player (id=" + player.getId() + ") does not belong to workspace " + request.getWorkspaceId());
         }
 
-        // Kiểm tra workspaceId của match nếu matchId không null
+        // 2️⃣ Kiểm tra match (nếu có)
         if (request.getMatchId() != null) {
             Match match = matchRepository.findById(request.getMatchId())
                     .orElseThrow(() -> new ResourceNotFoundException(ResourceName.MATCH, request.getMatchId()));
@@ -52,19 +52,34 @@ public class EloHistoryServiceImpl
             }
         }
 
-        // Lưu entity
-        EloHistory entity = eloHistoryMapper.requestToEntity(request);
+        // 3️⃣ Lấy bản ghi ELO gần nhất của player trong workspace
+        Optional<EloHistory> latestHistory = eloHistoryRepository
+                .findTopByWorkspaceIdAndPlayerIdOrderByIdDesc(request.getWorkspaceId(), request.getPlayerId());
+
+        int oldElo = latestHistory.map(EloHistory::getNewElo).orElse(player.getStartElo()); // mặc định 1000 nếu chưa có lịch sử
+        int newElo = oldElo + request.getEloChange();
+
+        // 4️⃣ Tạo bản ghi mới
+        EloHistory entity = new EloHistory()
+                .setWorkspaceId(request.getWorkspaceId())
+                .setPlayerId(request.getPlayerId())
+                .setMatchId(request.getMatchId())
+                .setTournamentId(request.getTournamentId())
+                .setOldElo(oldElo)
+                .setEloChange(request.getEloChange())
+                .setNewElo(newElo);
+
         entity = eloHistoryRepository.save(entity);
+
         return eloHistoryMapper.entityToResponse(entity);
     }
 
+
     @Override
     public EloHistoryResponse save(Long id, EloHistoryRequest request) {
-        // Lấy entity hiện tại
         EloHistory existing = eloHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ResourceName.ELO_HISTORY, id));
 
-        // Kiểm tra workspaceId của player
         Player player = playerRepository.findById(request.getPlayerId())
                 .orElseThrow(() -> new ResourceNotFoundException(ResourceName.PLAYER, request.getPlayerId()));
 
@@ -72,7 +87,6 @@ public class EloHistoryServiceImpl
             throw new IllegalArgumentException("Player (id=" + player.getId() + ") does not belong to workspace " + request.getWorkspaceId());
         }
 
-        // Kiểm tra workspaceId của match nếu matchId không null
         if (request.getMatchId() != null) {
             Match match = matchRepository.findById(request.getMatchId())
                     .orElseThrow(() -> new ResourceNotFoundException(ResourceName.MATCH, request.getMatchId()));
@@ -82,12 +96,26 @@ public class EloHistoryServiceImpl
             }
         }
 
-        // Cập nhật entity
-        existing = eloHistoryMapper.partialUpdate(existing, request);
-        existing = eloHistoryRepository.save(existing);
+        // Tính toán lại old/new elo dựa theo lịch sử trước đó
+        Optional<EloHistory> latestHistory = eloHistoryRepository
+                .findTopByWorkspaceIdAndPlayerIdOrderByIdDesc(request.getWorkspaceId(), request.getPlayerId());
 
+        int oldElo = latestHistory.map(EloHistory::getNewElo).orElse(player.getStartElo());
+        int newElo = oldElo + request.getEloChange();
+
+        existing
+                .setWorkspaceId(request.getWorkspaceId())
+                .setPlayerId(request.getPlayerId())
+                .setMatchId(request.getMatchId())
+                .setTournamentId(request.getTournamentId())
+                .setOldElo(oldElo)
+                .setEloChange(request.getEloChange())
+                .setNewElo(newElo);
+
+        existing = eloHistoryRepository.save(existing);
         return eloHistoryMapper.entityToResponse(existing);
     }
+
 
     // ---------------- override các phương thức của BaseCrudServiceImpl ----------------
     @Override
