@@ -2,6 +2,7 @@ package com.billard.BillardRankings.controller;
 
 import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.MatchResponse;
 import com.billard.BillardRankings.dto.TournamentRequest;
 import com.billard.BillardRankings.dto.TournamentResponse;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
@@ -90,18 +91,19 @@ public class TournamentController {
     }
 
     @PostMapping("/create-round-robin")
-    public ResponseEntity<String> createRoundRobin(
+    public ResponseEntity<?> createRoundRobin(
             @RequestBody RoundRobinRequest request,
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
         try {
-            tournamentService.createRoundRobin(request, workspaceId);
-            return ResponseEntity.ok("Round robin created successfully");
+            List<MatchResponse> matches = tournamentService.createRoundRobin(request, workspaceId);
+            return ResponseEntity.ok(matches);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to create round robin: " + e.getMessage());
         }
     }
+
 
 }

@@ -1,6 +1,7 @@
 package com.billard.BillardRankings.dto;
 
 import com.billard.BillardRankings.entity.Match;
+import com.billard.BillardRankings.entity.Tournament;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,6 +20,8 @@ public class MatchResponse {
     private Long id;
     private Long workspaceId;
     private Long tournamentId;
+    private Tournament.TournamentType tournamentRoundType ;
+    private Integer tournamentRound;
     private Long team1Id;
     private Long team2Id;
     private TeamResponse team1;
@@ -30,6 +33,8 @@ public class MatchResponse {
     private BigDecimal betAmount;
     private String matchDate;
     private String note;
+    private Integer round;
+    private Integer gameNumber;
     private Long winnerId;
     private Match.MatchStatus status;
     private LocalDateTime createdAt;

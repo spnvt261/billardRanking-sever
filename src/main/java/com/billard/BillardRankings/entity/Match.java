@@ -54,9 +54,22 @@ public class Match extends BaseEntity {
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "round")
+    private Integer round;
+
+    @Column(name = "game_number")
+    private Integer gameNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private MatchStatus status = MatchStatus.FINISHED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tournament_round_type")
+    private Tournament.TournamentType tournamentRoundType;
+
+    @Column(name = "tournament_round")
+    private Integer tournamentRound;
     
     @Column(name = "winner_id")
     private Long winnerId;

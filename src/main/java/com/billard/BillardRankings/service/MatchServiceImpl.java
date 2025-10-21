@@ -8,14 +8,12 @@ import com.billard.BillardRankings.dto.TeamResponse;
 import com.billard.BillardRankings.entity.Match;
 import com.billard.BillardRankings.entity.Team;
 import com.billard.BillardRankings.entity.TeamPlayer;
+import com.billard.BillardRankings.entity.Tournament;
 import com.billard.BillardRankings.exception.ResourceNotFoundException;
 import com.billard.BillardRankings.mapper.GenericMapper;
 import com.billard.BillardRankings.mapper.MatchMapper;
 import com.billard.BillardRankings.mapper.PlayerMapper;
-import com.billard.BillardRankings.repository.MatchRepository;
-import com.billard.BillardRankings.repository.PlayerRepository;
-import com.billard.BillardRankings.repository.TeamPlayerRepository;
-import com.billard.BillardRankings.repository.TeamRepository;
+import com.billard.BillardRankings.repository.*;
 import com.billard.BillardRankings.service.BaseCrudServiceImpl;
 import com.billard.BillardRankings.service.MatchService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +36,7 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
     private final TeamPlayerRepository teamPlayerRepository;
     private final MatchMapper matchMapper;
     private final PlayerMapper playerMapper;
+    private final TournamentRepository tournamentRepository;
 
     // ------------------- Validation Logic -------------------
     @Override
@@ -73,6 +72,30 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
                 response.isLast()
         );
     }
+
+
+    @Override
+    public List<MatchResponse> findByTournamentAndRound(Long tournamentId, int roundNumber, Long workspaceId) {
+        // Kiểm tra hợp lệ roundNumber
+        if (roundNumber < 1 || roundNumber > 3) {
+            throw new IllegalArgumentException("Invalid roundNumber: " + roundNumber + ". Must be 1, 2, or 3.");
+        }
+
+        // Kiểm tra tournament có tồn tại không
+        tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new IllegalArgumentException("Tournament not found with id=" + tournamentId));
+
+        // Lọc matches theo tournamentId, workspaceId và roundNumber (tournamentRound)
+        List<Match> matches = matchRepository.findByTournamentIdAndWorkspaceIdAndTournamentRound(
+                tournamentId, workspaceId, roundNumber
+        );
+
+        // Map sang response
+        return matches.stream()
+                .map(matchMapper::entityToResponse)
+                .toList();
+    }
+
 
     @Override
     @Transactional

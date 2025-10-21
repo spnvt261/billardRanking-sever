@@ -1,6 +1,7 @@
 package com.billard.BillardRankings.repository;
 
 import com.billard.BillardRankings.entity.Match;
+import com.billard.BillardRankings.entity.Tournament;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +14,11 @@ import java.util.List;
 public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecificationExecutor<Match> {
     List<Match> findByWorkspaceId(Long workspaceId);
     Page<Match> findByWorkspaceId(Long workspaceId, Pageable pageable);
+    List<Match> findByTournamentIdAndWorkspaceIdAndTournamentRoundType(
+            Long tournamentId,
+            Long workspaceId,
+            Tournament.TournamentType tournamentRoundType
+    );
+    List<Match> findByTournamentIdAndWorkspaceIdAndTournamentRound(Long tournamentId, Long workspaceId, int tournamentRound);
+
 }

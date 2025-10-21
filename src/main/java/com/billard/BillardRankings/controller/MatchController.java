@@ -74,4 +74,14 @@ public class MatchController {
         matchService.delete(ids, workspaceId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
+    @GetMapping("/by-round")
+    public ResponseEntity<List<MatchResponse>> getMatchesByRound(
+            @RequestParam("tournamentId") Long tournamentId,
+            @RequestParam("roundNumber") int roundNumber,
+            @RequestParam("workspaceId") Long workspaceId
+    ) {
+        List<MatchResponse> matches = matchService.findByTournamentAndRound(tournamentId, roundNumber, workspaceId);
+        return ResponseEntity.ok(matches);
+    }
+
 }
