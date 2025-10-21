@@ -32,6 +32,10 @@ public class Tournament extends BaseEntity {
     private Integer round1PlayersAfter;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "round1_status")
+    private TournamentRoundStatus round1Status = TournamentRoundStatus.UPCOMING;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "tournament_type_2")
     private TournamentType tournamentType2;
 
@@ -39,8 +43,16 @@ public class Tournament extends BaseEntity {
     private Integer round2PlayersAfter;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "round2_status")
+    private TournamentRoundStatus round2Status = TournamentRoundStatus.NOT_STARTED;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "tournament_type_3")
     private TournamentType tournamentType3;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "round3_status")
+    private TournamentRoundStatus round3Status  =TournamentRoundStatus.NOT_STARTED;
     
     @Column(name = "start_date", nullable = false)
     private String startDate;
@@ -90,5 +102,9 @@ public class Tournament extends BaseEntity {
 
     public enum TournamentFormat {
         SINGLE, DOUBLES
+    }
+
+    public enum TournamentRoundStatus {
+        ONGOING, FINISHED,NOT_STARTED,UPCOMING
     }
 }

@@ -43,8 +43,10 @@ public class MatchRequest {
     @NotNull(message = "Score is required")
     private Integer scoreTeam2 = 0;
     
-    private Match.MatchType matchType = Match.MatchType.GROUP;
-    private Match.MatchCategory matchCategory = Match.MatchCategory.TOURNAMENT;
+    private Match.MatchType matchType;
+    private Match.MatchCategory matchCategory;
+
+    private Match.MatchStatus status;
     
     private BigDecimal betAmount;
     

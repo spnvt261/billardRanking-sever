@@ -37,6 +37,22 @@ public class PlayerController {
         return ResponseEntity.status(HttpStatus.OK).body(playerService.findAll(page, size, sort, filter, search, all, workspaceId));
     }
 
+    @GetMapping("/sort-prize")
+    public ResponseEntity<ListResponse<PlayerResponse>> getAllPlayersSortedByPrize(
+            @RequestParam(name = "page", defaultValue = AppConstants.DEFAULT_PAGE_NUMBER) int page,
+            @RequestParam(name = "size", defaultValue = AppConstants.DEFAULT_PAGE_SIZE) int size,
+            @RequestParam(name = "sort", defaultValue = AppConstants.DEFAULT_SORT) String sort,
+            @RequestParam(name = "filter", required = false) @Nullable String filter,
+            @RequestParam(name = "search", required = false) @Nullable String search,
+            @RequestParam(name = "all", required = false) boolean all,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        // Gọi service mới sort theo prize
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(playerService.findAllSortedByPrize(page, size, sort, filter, search, all, workspaceId));
+    }
+
+
     @GetMapping("/{id}")
     public ResponseEntity<PlayerResponse> getPlayer(
             @PathVariable("id") Long id,

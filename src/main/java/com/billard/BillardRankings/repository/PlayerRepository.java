@@ -26,5 +26,6 @@ public interface PlayerRepository extends JpaRepository<Player, Long>, JpaSpecif
     // ✅ Dành cho PlayerServiceImpl
     Page<Player> findByWorkspaceId(Long workspaceId, Pageable pageable);
     List<Player> findByWorkspaceId(Long workspaceId);
+    List<Player> findAllByWorkspaceId(Long workspaceId);
 
 }

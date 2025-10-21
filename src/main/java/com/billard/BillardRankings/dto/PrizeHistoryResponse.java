@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -14,18 +13,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(chain = true)
-public class PlayerResponse {
+public class PrizeHistoryResponse {
     private Long id;
     private Long workspaceId;
-    private String name;
-    private String nickname;
-    private String avatarUrl;
-    private Integer elo;
-    private Integer prize;
-    private String description;
-    private LocalDate joinedDate;
+    private Long playerId;
+    private Long matchId;
+    private Long tournamentId;
+    private Integer oldPrize;
+    private Integer prizeChange;
+    private Integer newPrize;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private Integer rank;
-    private Integer seedNumber;
 }

@@ -11,4 +11,6 @@ public class ResourceName {
     public static final String TEAM_PLAYER = "TeamPlayer";
     public static final String TOURNAMENT_PLAYER = "TournamentPlayer";
     public static final String TOURNAMENT_TEAM = "TournamentTeam";
+    public static final String PRIZE_HISTORY = "PrizeHistory";
+
 }

@@ -1,6 +1,7 @@
 package com.billard.BillardRankings.service.impl;
 
 import com.billard.BillardRankings.constant.ResourceName;
+import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.MatchRequest;
 import com.billard.BillardRankings.dto.MatchResponse;
 import com.billard.BillardRankings.dto.TeamResponse;
@@ -39,6 +40,39 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
     private final PlayerMapper playerMapper;
 
     // ------------------- Validation Logic -------------------
+    @Override
+    public ListResponse<MatchResponse> findAll(int page, int size, String sort, String filter, String search, boolean all, Long workspaceId) {
+        // Gọi logic mặc định từ BaseCrudServiceImpl
+        ListResponse<MatchResponse> response = super.findAll(page, size, sort, filter, search, all, workspaceId);
+
+        // Nội dung gốc trên trang hiện tại
+        List<MatchResponse> originalContent = response.getContent();
+
+        // Lọc các trận đấu có status khác NOT_STARTED
+        List<MatchResponse> filteredContent = originalContent.stream()
+                .filter(match -> match.getStatus() != Match.MatchStatus.NOT_STARTED)
+                .toList();
+
+        // Tính số phần tử bị loại trên trang hiện tại
+        int removedOnPage = originalContent.size() - filteredContent.size();
+
+        // Tính totalElements mới (không âm)
+        long originalTotalElements = response.getTotalElements();
+        long newTotalElements = Math.max(0L, originalTotalElements - removedOnPage);
+
+        // Tính totalPages mới (cẩn trọng khi size == 0)
+        int pageSize = response.getSize() <= 0 ? size : response.getSize();
+        int newTotalPages = pageSize > 0 ? (int) Math.ceil((double) newTotalElements / pageSize) : 0;
+
+        return new ListResponse<>(
+                filteredContent,
+                response.getPage(),
+                pageSize,
+                newTotalElements,
+                newTotalPages,
+                response.isLast()
+        );
+    }
 
     @Override
     @Transactional

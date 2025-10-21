@@ -32,11 +32,17 @@ public class TournamentRequest {
 
     private Integer round1PlayersAfter;
 
+    private Tournament.TournamentRoundStatus round1Status;
+
     private Tournament.TournamentType tournamentType2;
 
     private Integer round2PlayersAfter;
 
+    private Tournament.TournamentRoundStatus round2Status;
+
     private Tournament.TournamentType tournamentType3;
+
+    private Tournament.TournamentRoundStatus round3Status;
     
     @NotNull(message = "Start date is required")
     private String startDate;

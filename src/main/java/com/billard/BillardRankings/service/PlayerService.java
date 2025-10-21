@@ -9,4 +9,6 @@ import java.util.List;
 
 public interface PlayerService extends CrudService<Long, PlayerRequest, PlayerResponse> {
     List<PlayerListResponse> findAllSimple(Long workspaceId);
+    ListResponse<PlayerResponse> findAllSortedByPrize(int page, int size, String sort, String filter, String search, boolean all, Long workspaceId);
+
 }

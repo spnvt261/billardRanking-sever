@@ -1,6 +1,7 @@
 package com.billard.BillardRankings.service.impl;
 
 import com.billard.BillardRankings.dto.*;
+import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
 import com.billard.BillardRankings.entity.*;
 import com.billard.BillardRankings.mapper.PlayerMapper;
 import com.billard.BillardRankings.repository.*;
@@ -8,6 +9,7 @@ import com.billard.BillardRankings.service.BaseCrudServiceImpl;
 import com.billard.BillardRankings.mapper.GenericMapper;
 import com.billard.BillardRankings.mapper.TournamentMapper;
 import com.billard.BillardRankings.service.TournamentService;
+import com.billard.BillardRankings.utils.DateUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,12 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.LinkedHashMap;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,6 +36,7 @@ public class TournamentServiceImpl
     private final TournamentRepository tournamentRepository;
     private final TournamentMapper tournamentMapper;
     private final PlayerRepository playerRepository;
+    private final MatchRepository matchRepository;
     private final TournamentPlayerRepository tournamentPlayerRepository; // ✅ thêm
     private final PlayerMapper playerMapper; // map entity -> PlayerResponse
     private final EloHistoryRepository eloHistoryRepository;
@@ -246,9 +244,12 @@ private TournamentResponse buildTournamentResponse(Tournament tournament, boolea
     response.setName(tournament.getName());
     response.setTournamentType(tournament.getTournamentType());
     response.setRound1PlayersAfter(tournament.getRound1PlayersAfter());
+    response.setRound1Status(tournament.getRound1Status());
     response.setTournamentType2(tournament.getTournamentType2());
     response.setRound2PlayersAfter(tournament.getRound2PlayersAfter());
+    response.setRound2Status(tournament.getRound2Status());
     response.setTournamentType3(tournament.getTournamentType3());
+    response.setRound3Status(tournament.getRound3Status());
     response.setStartDate(tournament.getStartDate());
     response.setEndDate(tournament.getEndDate());
     response.setLocation(tournament.getLocation());
@@ -947,6 +948,117 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
             }
         }
     }
+
+    @Override
+    @Transactional
+    public void createRoundRobin(RoundRobinRequest request, Long workspaceId) {
+        Tournament tournament = tournamentRepository.findById(request.getTournamentId())
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        if (!tournament.getWorkspaceId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Tournament does not belong to the specified workspaceId");
+        }
+
+        // ✅ Cập nhật thông tin theo roundNumber
+        switch (request.getRoundNumber()) {
+            case 1 -> {
+                tournament.setRound1PlayersAfter(request.getRoundPlayersAfter());
+                tournament.setRound1Status(Tournament.TournamentRoundStatus.ONGOING);
+            }
+            case 2 -> {
+                tournament.setRound2PlayersAfter(request.getRoundPlayersAfter());
+                tournament.setRound2Status(Tournament.TournamentRoundStatus.ONGOING);
+            }
+            case 3 -> tournament.setRound3Status(Tournament.TournamentRoundStatus.ONGOING);
+            default -> throw new IllegalArgumentException("Invalid round number: must be 1, 2, or 3");
+        }
+        tournamentRepository.save(tournament);
+
+        // ✅ Lấy danh sách player hợp lệ trong workspace
+        List<Long> validPlayerIds = playerRepository.findAllByWorkspaceId(workspaceId)
+                .stream()
+                .map(Player::getId)
+                .toList();
+
+        // ✅ Duyệt từng group (nhóm)
+        for (List<Long> group : request.getGroupSelections()) {
+            if (group.size() < 2) continue;
+
+            // Kiểm tra hợp lệ
+            for (Long playerId : group) {
+                if (!validPlayerIds.contains(playerId)) {
+                    throw new IllegalArgumentException("Player " + playerId + " không thuộc workspaceId " + workspaceId);
+                }
+            }
+
+            // 🔹 Nếu số lượng lẻ, thêm null (người nghỉ)
+            List<Long> players = new ArrayList<>(group);
+            if (players.size() % 2 != 0) {
+                players.add(null); // bye
+            }
+
+            int numPlayers = players.size();
+            int numRounds = numPlayers - 1;
+            int numMatchesPerRound = numPlayers / 2;
+
+            // 🔹 Chuẩn bị danh sách team cho mỗi player
+            Map<Long, Long> playerToTeam = new HashMap<>();
+            for (Long playerId : players) {
+                if (playerId == null) continue;
+
+                Team team = new Team()
+                        .setWorkspaceId(workspaceId)
+                        .setTeamName("Team_" + playerId + "_R" + request.getRoundNumber());
+                teamRepository.save(team);
+
+                TeamPlayer teamPlayer = new TeamPlayer()
+                        .setWorkspaceId(workspaceId)
+                        .setTeamId(team.getId())
+                        .setPlayerId(playerId)
+                        .setIsCaptain(true)
+                        .setJoinedAt(LocalDateTime.now());
+                teamPlayerRepository.save(teamPlayer);
+
+                playerToTeam.put(playerId, team.getId());
+            }
+
+            // 🔹 Sinh lịch thi đấu (Round Robin theo lượt)
+            for (int round = 0; round < numRounds; round++) {
+                for (int i = 0; i < numMatchesPerRound; i++) {
+                    Long player1 = players.get(i);
+                    Long player2 = players.get(numPlayers - 1 - i);
+
+                    if (player1 == null || player2 == null) continue; // ai nghỉ thì bỏ
+
+                    Match match = new Match()
+                            .setWorkspaceId(workspaceId)
+                            .setTournamentId(tournament.getId())
+                            .setTeam1Id(playerToTeam.get(player1))
+                            .setTeam2Id(playerToTeam.get(player2))
+                            .setScoreTeam1(0)
+                            .setScoreTeam2(0)
+                            .setMatchCategory(Match.MatchCategory.TOURNAMENT)
+                            .setMatchType(Match.MatchType.GROUP)
+                            .setStatus(Match.MatchStatus.UPCOMING)
+                            .setMatchDate(DateUtils.getCurrentDateString())
+                            .setNote("Round " + (round + 1)); // 👈 bạn có thể lưu thông tin lượt ở đây
+
+                    matchRepository.save(match);
+                }
+
+                // 🔹 Xoay vòng (circle method)
+                // Giữ nguyên người đầu tiên, xoay phần còn lại
+                Long first = players.get(0);
+                List<Long> rotated = new ArrayList<>();
+                rotated.add(first);
+                rotated.add(players.get(numPlayers - 1));
+                rotated.addAll(players.subList(1, numPlayers - 1));
+                players = rotated;
+            }
+        }
+    }
+
+
 
 
 

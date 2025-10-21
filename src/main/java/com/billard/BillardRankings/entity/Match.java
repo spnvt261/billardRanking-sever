@@ -53,6 +53,10 @@ public class Match extends BaseEntity {
     
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private MatchStatus status = MatchStatus.FINISHED;
     
     @Column(name = "winner_id")
     private Long winnerId;
@@ -63,5 +67,9 @@ public class Match extends BaseEntity {
     
     public enum MatchCategory {
          FUN, TOURNAMENT, BETTING
+    }
+
+    public enum MatchStatus {
+        ONGOING, FINISHED,NOT_STARTED,UPCOMING
     }
 }

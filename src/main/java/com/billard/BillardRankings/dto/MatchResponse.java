@@ -31,6 +31,7 @@ public class MatchResponse {
     private String matchDate;
     private String note;
     private Long winnerId;
+    private Match.MatchStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

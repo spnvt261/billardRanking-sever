@@ -22,9 +22,12 @@ public class TournamentResponse {
     private String name;
     private Tournament.TournamentType tournamentType;
     private Integer round1PlayersAfter;
+    private Tournament.TournamentRoundStatus round1Status;
     private Tournament.TournamentType tournamentType2;
     private Integer round2PlayersAfter;
+    private Tournament.TournamentRoundStatus round2Status;
     private Tournament.TournamentType tournamentType3;
+    private Tournament.TournamentRoundStatus round3Status;
     private String startDate;
     private String endDate;
     private String location;

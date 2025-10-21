@@ -30,10 +30,10 @@ public class Player extends BaseEntity {
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 
-    @Column(name = "start_elo")
-    private Integer startElo;
+    @Column(name = "start_elo", nullable = false)
+    private Integer startElo = 0;
 
-    @Column(name = "start_money")
+    @Column(name = "start_money", nullable = false)
     private Integer startMoney = 0;
 
     @Column(name = "is_friend")

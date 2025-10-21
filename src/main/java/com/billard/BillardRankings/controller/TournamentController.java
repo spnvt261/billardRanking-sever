@@ -4,6 +4,7 @@ import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.TournamentRequest;
 import com.billard.BillardRankings.dto.TournamentResponse;
+import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
 import com.billard.BillardRankings.service.TournamentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -88,5 +89,19 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.getAllTournamentsGroupedByQuarter(workspaceId));
     }
 
+    @PostMapping("/create-round-robin")
+    public ResponseEntity<String> createRoundRobin(
+            @RequestBody RoundRobinRequest request,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        try {
+            tournamentService.createRoundRobin(request, workspaceId);
+            return ResponseEntity.ok("Round robin created successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create round robin: " + e.getMessage());
+        }
+    }
 
 }

@@ -1,10 +1,10 @@
 package com.billard.BillardRankings.controller;
 
 import com.billard.BillardRankings.constant.AppConstants;
-import com.billard.BillardRankings.dto.EloHistoryRequest;
-import com.billard.BillardRankings.dto.EloHistoryResponse;
 import com.billard.BillardRankings.dto.ListResponse;
-import com.billard.BillardRankings.service.EloHistoryService;
+import com.billard.BillardRankings.dto.PrizeHistoryRequest;
+import com.billard.BillardRankings.dto.PrizeHistoryResponse;
+import com.billard.BillardRankings.service.PrizeHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,15 +14,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/elo-histories")
+@RequestMapping("/api/prize-histories")
 @RequiredArgsConstructor
 @CrossOrigin(AppConstants.FRONTEND_HOST)
-public class EloHistoryController {
+public class PrizeHistoryController {
 
-    private final EloHistoryService eloHistoryService;
+    private final PrizeHistoryService prizeHistoryService;
 
     @GetMapping
-    public ResponseEntity<ListResponse<EloHistoryResponse>> getAllEloHistories(
+    public ResponseEntity<ListResponse<PrizeHistoryResponse>> getAllPrizeHistories(
             @RequestParam(name = "page", defaultValue = AppConstants.DEFAULT_PAGE_NUMBER) int page,
             @RequestParam(name = "size", defaultValue = AppConstants.DEFAULT_PAGE_SIZE) int size,
             @RequestParam(name = "sort", defaultValue = AppConstants.DEFAULT_SORT) String sort,
@@ -31,45 +31,45 @@ public class EloHistoryController {
             @RequestParam(name = "all", required = false) boolean all,
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(eloHistoryService.findAll(page, size, sort, filter, search, all, workspaceId));
+        return ResponseEntity.status(HttpStatus.OK).body(prizeHistoryService.findAll(page, size, sort, filter, search, all, workspaceId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<EloHistoryResponse> getEloHistory(
+    public ResponseEntity<PrizeHistoryResponse> getPrizeHistory(
             @PathVariable("id") Long id,
             @RequestParam(name = "workspaceId") Long workspaceId
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(eloHistoryService.findById(id, workspaceId));
+        return ResponseEntity.status(HttpStatus.OK).body(prizeHistoryService.findById(id, workspaceId));
     }
 
     @PostMapping
-    public ResponseEntity<EloHistoryResponse> createEloHistory(@RequestBody EloHistoryRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eloHistoryService.save(request));
+    public ResponseEntity<PrizeHistoryResponse> createPrizeHistory(@RequestBody PrizeHistoryRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(prizeHistoryService.save(request));
     }
 
 //    @PutMapping("/{id}")
-//    public ResponseEntity<EloHistoryResponse> updateEloHistory(
+//    public ResponseEntity<PrizeHistoryResponse> updatePrizeHistory(
 //            @PathVariable("id") Long id,
-//            @RequestBody EloHistoryRequest request
+//            @RequestBody PrizeHistoryRequest request
 //    ) {
-//        return ResponseEntity.status(HttpStatus.OK).body(eloHistoryService.save(id, request));
+//        return ResponseEntity.status(HttpStatus.OK).body(prizeHistoryService.save(id, request));
 //    }
 
 //    @DeleteMapping("/{id}")
-//    public ResponseEntity<Void> deleteEloHistory(
+//    public ResponseEntity<Void> deletePrizeHistory(
 //            @PathVariable("id") Long id,
 //            @RequestParam(name = "workspaceId") Long workspaceId
 //    ) {
-//        eloHistoryService.delete(id, workspaceId);
+//        prizeHistoryService.delete(id, workspaceId);
 //        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
 //    }
 
 //    @DeleteMapping
-//    public ResponseEntity<Void> deleteEloHistories(
+//    public ResponseEntity<Void> deletePrizeHistories(
 //            @RequestBody List<Long> ids,
 //            @RequestParam(name = "workspaceId") Long workspaceId
 //    ) {
-//        eloHistoryService.delete(ids, workspaceId);
+//        prizeHistoryService.delete(ids, workspaceId);
 //        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
 //    }
 }
