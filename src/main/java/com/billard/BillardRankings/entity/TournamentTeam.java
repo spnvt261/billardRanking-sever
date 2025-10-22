@@ -28,6 +28,9 @@ public class TournamentTeam extends BaseEntity {
     
     @Column(name = "is_active")
     private Boolean isActive = true;
+
+    @Column(name = "tournament_round")
+    private Integer tournamentRound = 1;
     
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;

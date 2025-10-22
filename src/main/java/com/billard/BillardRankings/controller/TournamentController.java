@@ -5,6 +5,7 @@ import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.MatchResponse;
 import com.billard.BillardRankings.dto.TournamentRequest;
 import com.billard.BillardRankings.dto.TournamentResponse;
+import com.billard.BillardRankings.dto.roundType.RoundRobinRankingResponse;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
 import com.billard.BillardRankings.service.TournamentService;
 import lombok.RequiredArgsConstructor;
@@ -89,6 +90,17 @@ public class TournamentController {
     ) {
         return ResponseEntity.ok(tournamentService.getAllTournamentsGroupedByQuarter(workspaceId));
     }
+
+    @GetMapping("/roundrobin-rankings")
+    public ResponseEntity<RoundRobinRankingResponse> getRoundRobinRankings(
+            @RequestParam(name = "tournamentId") Long tournamentId,
+            @RequestParam(name = "workspaceId") Long workspaceId,
+            @RequestParam(name = "roundNumber") int roundNumber
+    ) {
+        RoundRobinRankingResponse response = tournamentService.getRoundRobinRankings(tournamentId, workspaceId, roundNumber);
+        return ResponseEntity.ok(response);
+    }
+
 
     @PostMapping("/create-round-robin")
     public ResponseEntity<?> createRoundRobin(

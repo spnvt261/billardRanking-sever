@@ -10,6 +10,7 @@ import lombok.experimental.Accessors;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -55,5 +56,7 @@ public class TournamentResponse {
     private Integer numberTeams;
     // ✅ Thêm danh sách người chơi tham dự
 //    private List<PlayerResponse> listPlayer;
-    private List<TeamResponse> listTeam; // ✅ thay cho listPlayer
+//    private List<TeamResponse> listTeam; // ✅ thay cho listPlayer
+    private Map<Integer, List<TeamResponse>> listTeamByRound;
+
 }

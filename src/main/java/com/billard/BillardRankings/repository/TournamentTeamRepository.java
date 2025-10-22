@@ -13,5 +13,7 @@ public interface TournamentTeamRepository extends JpaRepository<TournamentTeam, 
     List<TournamentTeam> findByTeamId(Long teamId);
     int countByTournamentId(Long tournamentId);
     List<TournamentTeam> findByTournamentIdIn(List<Long> tournamentIds);
+    List<TournamentTeam> findByTournamentIdAndTournamentRound(Long tournamentId, Integer tournamentRound);
+
 
 }
