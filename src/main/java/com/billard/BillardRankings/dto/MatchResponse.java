@@ -20,6 +20,7 @@ public class MatchResponse {
     private Long id;
     private Long workspaceId;
     private Long tournamentId;
+    private String tournamentName; // thêm field này
     private Tournament.TournamentType tournamentRoundType ;
     private Integer tournamentRound;
     private Long team1Id;
@@ -36,6 +37,8 @@ public class MatchResponse {
     private Integer round;
     private Integer gameNumber;
     private Long winnerId;
+    private Long nextMatchIfWin;
+    private Long nextMatchIfLosses;
     private Match.MatchStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

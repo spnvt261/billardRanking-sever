@@ -1,10 +1,12 @@
 package com.billard.BillardRankings.service.impl;
 
 import com.billard.BillardRankings.dto.*;
+import com.billard.BillardRankings.dto.roundType.OtherRoundTypeRequest;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRankingResponse;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
 import com.billard.BillardRankings.dto.roundType.RoundRobinTeamResponse;
 import com.billard.BillardRankings.entity.*;
+import com.billard.BillardRankings.mapper.MatchMapper;
 import com.billard.BillardRankings.mapper.PlayerMapper;
 import com.billard.BillardRankings.repository.*;
 import com.billard.BillardRankings.service.BaseCrudServiceImpl;
@@ -45,11 +47,14 @@ public class TournamentServiceImpl
     private final TeamRepository teamRepository;
     private final TeamPlayerRepository teamPlayerRepository;
     private final TournamentTeamRepository tournamentTeamRepository;
+    private final MatchMapper matchMapper;
 
     private static final String[] DEFAULT_BANNERS = {
             "https://res.cloudinary.com/djeohgclg/image/upload/v1760831796/kpyjblssthmy01sxrpwc.jpg",
             "https://res.cloudinary.com/djeohgclg/image/upload/v1760831891/bkqwndeuxax9d4icepaw.jpg"
     };
+    private final com.billard.BillardRankings.service.impl.MatchServiceImpl matchServiceImpl;
+
     @Override
     protected JpaRepository<Tournament, Long> getRepository() {
         return tournamentRepository;
@@ -732,9 +737,8 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
     }
 
 
-//@Override
-//@Transactional
 //public List<MatchResponse> createRoundRobin(RoundRobinRequest request, Long workspaceId) {
+//    // 1. Lấy tournament và kiểm tra workspace
 //    Tournament tournament = tournamentRepository.findById(request.getTournamentId())
 //            .orElseThrow(() -> new RuntimeException("Tournament not found"));
 //
@@ -742,7 +746,7 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
 //        throw new IllegalArgumentException("Tournament does not belong to the specified workspaceId");
 //    }
 //
-//    // Cập nhật thông tin theo roundNumber
+//    // 2. Cập nhật trạng thái round tương ứng
 //    switch (request.getRoundNumber()) {
 //        case 1 -> {
 //            tournament.setRound1PlayersAfter(request.getRoundPlayersAfter());
@@ -757,78 +761,98 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
 //    }
 //    tournamentRepository.save(tournament);
 //
-//    List<Long> validPlayerIds = playerRepository.findAllByWorkspaceId(workspaceId)
-//            .stream()
-//            .map(Player::getId)
+//    // 3. Lấy tất cả TournamentTeam cho tournament và round được truyền vào
+//    List<TournamentTeam> tournamentTeams = tournamentTeamRepository
+//            .findByTournamentIdAndTournamentRound(tournament.getId(), request.getRoundNumber());
+//
+//    if (tournamentTeams.isEmpty()) {
+//        throw new IllegalArgumentException("No teams found in tournament " + tournament.getId() + " for round " + request.getRoundNumber());
+//    }
+//
+//    // 4. Lấy tất cả teamIds thuộc tournamentTeams
+//    List<Long> tournamentTeamIds = tournamentTeams.stream()
+//            .map(TournamentTeam::getTeamId)
 //            .toList();
+//
+//    // 5. Lấy mapping teamId -> list(playerId) từ team_player (chỉ cho các team thuộc tournamentTeamIds)
+//    List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(tournamentTeamIds);
+//    Map<Long, List<Long>> teamIdToPlayerIds = teamPlayers.stream()
+//            .collect(Collectors.groupingBy(
+//                    TeamPlayer::getTeamId,
+//                    Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+//            ));
+//
+//    // 6. Xây map playerId -> teamId (nếu player nằm trong nhiều team thuộc tournamentTeamIds, map đến first match)
+//    Map<Long, Long> playerIdToTeamId = new HashMap<>();
+//    for (Map.Entry<Long, List<Long>> e : teamIdToPlayerIds.entrySet()) {
+//        Long teamId = e.getKey();
+//        for (Long playerId : e.getValue()) {
+//            // nếu player đã map sang team khác trước đó, giữ team đầu tiên (hoặc bạn có thể ném lỗi tuỳ nhu cầu)
+//            playerIdToTeamId.putIfAbsent(playerId, teamId);
+//        }
+//    }
+//
+//    // 7. Lấy groupSelections từ request (mảng 2 chiều playerId groups)
+//    List<List<Long>> groupSelections = request.getGroupSelections();
+//    if (groupSelections == null || groupSelections.isEmpty()) {
+//        throw new IllegalArgumentException("groupSelections must not be empty");
+//    }
 //
 //    int gameNumberPlayed = request.getGameNumberPlayed();
 //    char[] groupNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
-//
-//    List<List<Long>> groupPlayersCopy = new ArrayList<>();
-//    List<Integer> groupNumRounds = new ArrayList<>();
-//    for (List<Long> group : request.getGroupSelections()) {
-//        List<Long> players = new ArrayList<>(group);
-//        if (players.size() % 2 != 0) players.add(null);
-//        groupPlayersCopy.add(players);
-//        groupNumRounds.add(players.size() - 1);
-//    }
-//
-//    List<Map<Long, Long>> groupPlayerToTeam = new ArrayList<>();
-//    for (int groupIndex = 0; groupIndex < request.getGroupSelections().size(); groupIndex++) {
-//        List<Long> players = groupPlayersCopy.get(groupIndex);
-//        Map<Long, Long> playerToTeam = new HashMap<>();
-//        for (Long playerId : players) {
-//            if (playerId == null) continue;
-//            if (!validPlayerIds.contains(playerId)) {
-//                throw new IllegalArgumentException("Player " + playerId + " không thuộc workspaceId " + workspaceId);
-//            }
-//
-//            Team team = new Team()
-//                    .setWorkspaceId(workspaceId)
-//                    .setTeamName("Team_" + playerId + "_R" + request.getRoundNumber());
-//            teamRepository.save(team);
-//
-//            TeamPlayer teamPlayer = new TeamPlayer()
-//                    .setWorkspaceId(workspaceId)
-//                    .setTeamId(team.getId())
-//                    .setPlayerId(playerId)
-//                    .setIsCaptain(true)
-//                    .setJoinedAt(LocalDateTime.now());
-//            teamPlayerRepository.save(teamPlayer);
-//
-//            playerToTeam.put(playerId, team.getId());
-//        }
-//        groupPlayerToTeam.add(playerToTeam);
-//    }
-//
-//    int maxRounds = groupNumRounds.stream().max(Integer::compareTo).orElse(0);
-//
 //    List<MatchResponse> createdMatches = new ArrayList<>();
 //
-//    for (int round = 0; round < maxRounds; round++) {
-//        for (int groupIndex = 0; groupIndex < request.getGroupSelections().size(); groupIndex++) {
-//            List<Long> players = groupPlayersCopy.get(groupIndex);
-//            Map<Long, Long> playerToTeam = groupPlayerToTeam.get(groupIndex);
-//            int numRounds = groupNumRounds.get(groupIndex);
+//    // 8. Với mỗi group (group là danh sách playerId), chuyển sang danh sách teamId tương ứng
+//    for (int groupIndex = 0; groupIndex < groupSelections.size(); groupIndex++) {
+//        List<Long> playerGroup = groupSelections.get(groupIndex);
+//        if (playerGroup == null || playerGroup.isEmpty()) {
+//            continue; // bỏ qua nhóm rỗng
+//        }
 //
-//            if (round >= numRounds) continue;
+//        List<Long> groupTeamIds = new ArrayList<>();
+//        Set<Long> seenTeamIds = new HashSet<>();
 //
-//            int numPlayers = players.size();
-//            int numMatchesPerRound = numPlayers / 2;
-//            String groupLabel = groupNames[groupIndex] + "";
+//        for (Long playerId : playerGroup) {
+//            if (playerId == null) continue;
+//            Long teamId = playerIdToTeamId.get(playerId);
+//            if (teamId == null) {
+//                // player trong payload không thuộc bất kỳ team nào của tournament này ở round này
+//                throw new IllegalArgumentException("Player " + playerId + " không thuộc bất kỳ team nào của tournament " + tournament.getId() + " ở round " + request.getRoundNumber());
+//            }
+//            // tránh trùng team (nếu một team có nhiều player)
+//            if (!seenTeamIds.contains(teamId)) {
+//                groupTeamIds.add(teamId);
+//                seenTeamIds.add(teamId);
+//            }
+//        }
 //
+//        if (groupTeamIds.isEmpty()) continue; // không có team hợp lệ trong group này
+//
+//        // 9. Đảm bảo số team chẵn (thêm null làm bye nếu cần)
+//        if (groupTeamIds.size() % 2 != 0) {
+//            groupTeamIds.add(null);
+//        }
+//
+//        int numRounds = groupTeamIds.size() - 1;
+//        String groupLabel = groupNames.length > groupIndex ? String.valueOf(groupNames[groupIndex]) : ("G" + (groupIndex + 1));
+//
+//        // 10. Sinh match cho từng vòng trong group (circle method)
+//        List<Long> rotating = new ArrayList<>(groupTeamIds); // sẽ xoay vòng
+//        for (int r = 0; r < numRounds; r++) {
+//            int numMatchesPerRound = rotating.size() / 2;
 //            for (int i = 0; i < numMatchesPerRound; i++) {
-//                Long player1 = players.get(i);
-//                Long player2 = players.get(numPlayers - 1 - i);
-//                if (player1 == null || player2 == null) continue;
+//                Long team1 = rotating.get(i);
+//                Long team2 = rotating.get(rotating.size() - 1 - i);
+//
+//                if (team1 == null || team2 == null) continue; // bye
 //
 //                gameNumberPlayed += 1;
+//
 //                Match match = new Match()
 //                        .setWorkspaceId(workspaceId)
 //                        .setTournamentId(tournament.getId())
-//                        .setTeam1Id(playerToTeam.get(player1))
-//                        .setTeam2Id(playerToTeam.get(player2))
+//                        .setTeam1Id(team1)
+//                        .setTeam2Id(team2)
 //                        .setScoreTeam1(0)
 //                        .setScoreTeam2(0)
 //                        .setMatchCategory(Match.MatchCategory.TOURNAMENT)
@@ -836,14 +860,13 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
 //                        .setStatus(Match.MatchStatus.UPCOMING)
 //                        .setMatchDate(DateUtils.getCurrentDateString())
 //                        .setNote(groupLabel)
-//                        .setRound(round + 1)
+//                        .setRound(r + 1) // vòng trong group
 //                        .setTournamentRoundType(Tournament.TournamentType.ROUND_ROBIN)
 //                        .setTournamentRound(request.getRoundNumber())
 //                        .setGameNumber(gameNumberPlayed);
 //
 //                matchRepository.save(match);
 //
-//                // Chuyển sang MatchResponse
 //                MatchResponse response = new MatchResponse()
 //                        .setId(match.getId())
 //                        .setWorkspaceId(match.getWorkspaceId())
@@ -867,302 +890,613 @@ public Map<String, Object> getAllTournamentsGroupedByQuarter(Long workspaceId) {
 //                createdMatches.add(response);
 //            }
 //
-//            // Xoay vòng (circle method)
-//            Long first = players.get(0);
-//            List<Long> rotated = new ArrayList<>();
-//            rotated.add(first);
-//            rotated.add(players.get(numPlayers - 1));
-//            rotated.addAll(players.subList(1, numPlayers - 1));
-//            groupPlayersCopy.set(groupIndex, rotated);
+//            // Xoay: giữ phần tử đầu, xoay phần còn lại sang phải 1
+//            Long first = rotating.get(0);
+//            List<Long> rest = new ArrayList<>(rotating.subList(1, rotating.size()));
+//            Collections.rotate(rest, 1); // xoay phải 1
+//            List<Long> newRot = new ArrayList<>();
+//            newRot.add(first);
+//            newRot.addAll(rest);
+//            rotating = newRot;
 //        }
 //    }
 //
 //    return createdMatches;
 //}
-public List<MatchResponse> createRoundRobin(RoundRobinRequest request, Long workspaceId) {
-    // 1. Lấy tournament và kiểm tra workspace
-    Tournament tournament = tournamentRepository.findById(request.getTournamentId())
-            .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+    public List<MatchResponse> createRoundRobin(RoundRobinRequest request, Long workspaceId) {
+        // 1. Lấy tournament và kiểm tra workspace
+        Tournament tournament = tournamentRepository.findById(request.getTournamentId())
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        if (!tournament.getWorkspaceId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Tournament does not belong to the specified workspaceId");
+        }
+
+        // 2. Cập nhật trạng thái round tương ứng
+        switch (request.getRoundNumber()) {
+            case 1 -> {
+                tournament.setRound1PlayersAfter(request.getRoundPlayersAfter());
+                tournament.setRound1Status(Tournament.TournamentRoundStatus.ONGOING);
+            }
+            case 2 -> {
+                tournament.setRound2PlayersAfter(request.getRoundPlayersAfter());
+                tournament.setRound2Status(Tournament.TournamentRoundStatus.ONGOING);
+            }
+            case 3 -> tournament.setRound3Status(Tournament.TournamentRoundStatus.ONGOING);
+            default -> throw new IllegalArgumentException("Invalid round number: must be 1, 2, or 3");
+        }
+        tournamentRepository.save(tournament);
+
+        // 3. Lấy tất cả TournamentTeam cho tournament và round
+        List<TournamentTeam> tournamentTeams = tournamentTeamRepository
+                .findByTournamentIdAndTournamentRound(tournament.getId(), request.getRoundNumber());
+
+        if (tournamentTeams.isEmpty()) {
+            throw new IllegalArgumentException("No teams found in tournament " + tournament.getId() + " for round " + request.getRoundNumber());
+        }
+
+        // 4. Lấy tất cả teamIds
+        List<Long> tournamentTeamIds = tournamentTeams.stream()
+                .map(TournamentTeam::getTeamId)
+                .toList();
+
+        // 5. Lấy mapping teamId -> list(playerId)
+        List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(tournamentTeamIds);
+        Map<Long, List<Long>> teamIdToPlayerIds = teamPlayers.stream()
+                .collect(Collectors.groupingBy(
+                        TeamPlayer::getTeamId,
+                        Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+                ));
+
+        // 6. Map playerId -> teamId
+        Map<Long, Long> playerIdToTeamId = new HashMap<>();
+        for (Map.Entry<Long, List<Long>> e : teamIdToPlayerIds.entrySet()) {
+            Long teamId = e.getKey();
+            for (Long playerId : e.getValue()) {
+                playerIdToTeamId.putIfAbsent(playerId, teamId);
+            }
+        }
+
+        // 7. Lấy groupSelections từ request
+        List<List<Long>> groupSelections = request.getGroupSelections();
+        if (groupSelections == null || groupSelections.isEmpty()) {
+            throw new IllegalArgumentException("groupSelections must not be empty");
+        }
+
+        int gameNumberPlayed = request.getGameNumberPlayed();
+        char[] groupNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+        List<MatchResponse> createdMatches = new ArrayList<>();
+
+        // 8. Chuẩn bị teamIds cho tất cả group
+        List<List<Long>> allGroupsTeamIds = new ArrayList<>();
+        List<Integer> allGroupsNumRounds = new ArrayList<>();
+        for (List<Long> playerGroup : groupSelections) {
+            List<Long> groupTeamIds = new ArrayList<>();
+            Set<Long> seenTeamIds = new HashSet<>();
+            for (Long playerId : playerGroup) {
+                if (playerId == null) continue;
+                Long teamId = playerIdToTeamId.get(playerId);
+                if (teamId == null) {
+                    throw new IllegalArgumentException("Player " + playerId + " không thuộc bất kỳ team nào của tournament " + tournament.getId() + " round " + request.getRoundNumber());
+                }
+                if (!seenTeamIds.contains(teamId)) {
+                    groupTeamIds.add(teamId);
+                    seenTeamIds.add(teamId);
+                }
+            }
+            if (groupTeamIds.size() % 2 != 0) {
+                groupTeamIds.add(null); // thêm bye nếu lẻ
+            }
+            allGroupsTeamIds.add(groupTeamIds);
+            allGroupsNumRounds.add(groupTeamIds.size() - 1); // số vòng cho từng bảng
+        }
+
+        // 9. Tìm số vòng lớn nhất trong tất cả bảng
+        int maxRounds = allGroupsNumRounds.stream().max(Integer::compareTo).orElse(0);
+
+        // 10. Duyệt từng lượt r
+        for (int r = 0; r < maxRounds; r++) {
+            for (int groupIndex = 0; groupIndex < allGroupsTeamIds.size(); groupIndex++) {
+                List<Long> groupTeamIds = new ArrayList<>(allGroupsTeamIds.get(groupIndex));
+                int numRounds = allGroupsNumRounds.get(groupIndex);
+
+                if (r >= numRounds) continue; // bảng đã hết vòng tròn → skip
+
+                // Xoay nhóm r lần
+                for (int i = 0; i < r; i++) {
+                    Long first = groupTeamIds.get(0);
+                    List<Long> rest = new ArrayList<>(groupTeamIds.subList(1, groupTeamIds.size()));
+                    Collections.rotate(rest, 1);
+                    List<Long> newRot = new ArrayList<>();
+                    newRot.add(first);
+                    newRot.addAll(rest);
+                    groupTeamIds = newRot;
+                }
+
+                int numMatchesPerRound = groupTeamIds.size() / 2;
+                if (numMatchesPerRound == 0) continue; // lượt này bảng không có trận
+
+                String groupLabel = groupNames.length > groupIndex ? String.valueOf(groupNames[groupIndex]) : ("G" + (groupIndex + 1));
+
+                // Tạo match
+                for (int i = 0; i < numMatchesPerRound; i++) {
+                    Long team1 = groupTeamIds.get(i);
+                    Long team2 = groupTeamIds.get(groupTeamIds.size() - 1 - i);
+                    if (team1 == null || team2 == null) continue; // bye
+
+                    gameNumberPlayed += 1;
+
+                    Match match = new Match()
+                            .setWorkspaceId(workspaceId)
+                            .setTournamentId(tournament.getId())
+                            .setTeam1Id(team1)
+                            .setTeam2Id(team2)
+                            .setScoreTeam1(0)
+                            .setScoreTeam2(0)
+                            .setMatchCategory(Match.MatchCategory.TOURNAMENT)
+                            .setMatchType(Match.MatchType.GROUP)
+                            .setStatus(Match.MatchStatus.UPCOMING)
+                            .setMatchDate(DateUtils.getCurrentDateString())
+                            .setNote(groupLabel)
+                            .setRound(r + 1)
+                            .setTournamentRoundType(Tournament.TournamentType.ROUND_ROBIN)
+                            .setTournamentRound(request.getRoundNumber())
+                            .setGameNumber(gameNumberPlayed);
+
+                    matchRepository.save(match);
+
+                    MatchResponse response = new MatchResponse()
+                            .setId(match.getId())
+                            .setWorkspaceId(match.getWorkspaceId())
+                            .setTournamentId(match.getTournamentId())
+                            .setTournamentRoundType(match.getTournamentRoundType())
+                            .setTeam1Id(match.getTeam1Id())
+                            .setTeam2Id(match.getTeam2Id())
+                            .setScoreTeam1(match.getScoreTeam1())
+                            .setScoreTeam2(match.getScoreTeam2())
+                            .setMatchType(match.getMatchType())
+                            .setMatchCategory(match.getMatchCategory())
+                            .setMatchDate(match.getMatchDate())
+                            .setNote(match.getNote())
+                            .setRound(match.getRound())
+                            .setGameNumber(match.getGameNumber())
+                            .setStatus(match.getStatus())
+                            .setWinnerId(match.getWinnerId())
+                            .setCreatedAt(match.getCreatedAt())
+                            .setUpdatedAt(match.getUpdatedAt());
+
+                    createdMatches.add(response);
+                }
+            }
+        }
+
+        return createdMatches;
+    }
+
+
+    @Override
+public RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long workspaceId, int roundNumber) {
+    Tournament tournament = tournamentRepository.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament not found: " + tournamentId));
 
     if (!tournament.getWorkspaceId().equals(workspaceId)) {
-        throw new IllegalArgumentException("Tournament does not belong to the specified workspaceId");
+        throw new IllegalArgumentException("Tournament does not belong to workspace " + workspaceId);
     }
 
-    // 2. Cập nhật trạng thái round tương ứng
-    switch (request.getRoundNumber()) {
-        case 1 -> {
-            tournament.setRound1PlayersAfter(request.getRoundPlayersAfter());
-            tournament.setRound1Status(Tournament.TournamentRoundStatus.ONGOING);
-        }
-        case 2 -> {
-            tournament.setRound2PlayersAfter(request.getRoundPlayersAfter());
-            tournament.setRound2Status(Tournament.TournamentRoundStatus.ONGOING);
-        }
-        case 3 -> tournament.setRound3Status(Tournament.TournamentRoundStatus.ONGOING);
-        default -> throw new IllegalArgumentException("Invalid round number: must be 1, 2, or 3");
-    }
-    tournamentRepository.save(tournament);
+    List<Match> matches = matchRepository.findByTournamentIdAndWorkspaceIdAndTournamentRound(
+            tournamentId, workspaceId, roundNumber
+    );
 
-    // 3. Lấy tất cả TournamentTeam cho tournament và round được truyền vào
-    List<TournamentTeam> tournamentTeams = tournamentTeamRepository
-            .findByTournamentIdAndTournamentRound(tournament.getId(), request.getRoundNumber());
+    Map<String, List<Match>> matchesByGroup = matches.stream()
+            .filter(m -> m.getTournamentRoundType() == Tournament.TournamentType.ROUND_ROBIN)
+            .filter(m -> m.getNote() != null && !m.getNote().isEmpty())
+            .collect(Collectors.groupingBy(Match::getNote));
 
-    if (tournamentTeams.isEmpty()) {
-        throw new IllegalArgumentException("No teams found in tournament " + tournament.getId() + " for round " + request.getRoundNumber());
-    }
+    Map<Integer, List<RoundRobinTeamResponse>> rankingsMap = new HashMap<>();
+    int groupIndex = 1;
 
-    // 4. Lấy tất cả teamIds thuộc tournamentTeams
-    List<Long> tournamentTeamIds = tournamentTeams.stream()
-            .map(TournamentTeam::getTeamId)
-            .toList();
+    for (Map.Entry<String, List<Match>> entry : matchesByGroup.entrySet()) {
+        List<Match> groupMatches = entry.getValue();
 
-    // 5. Lấy mapping teamId -> list(playerId) từ team_player (chỉ cho các team thuộc tournamentTeamIds)
-    List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(tournamentTeamIds);
-    Map<Long, List<Long>> teamIdToPlayerIds = teamPlayers.stream()
-            .collect(Collectors.groupingBy(
-                    TeamPlayer::getTeamId,
-                    Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
-            ));
-
-    // 6. Xây map playerId -> teamId (nếu player nằm trong nhiều team thuộc tournamentTeamIds, map đến first match)
-    Map<Long, Long> playerIdToTeamId = new HashMap<>();
-    for (Map.Entry<Long, List<Long>> e : teamIdToPlayerIds.entrySet()) {
-        Long teamId = e.getKey();
-        for (Long playerId : e.getValue()) {
-            // nếu player đã map sang team khác trước đó, giữ team đầu tiên (hoặc bạn có thể ném lỗi tuỳ nhu cầu)
-            playerIdToTeamId.putIfAbsent(playerId, teamId);
-        }
-    }
-
-    // 7. Lấy groupSelections từ request (mảng 2 chiều playerId groups)
-    List<List<Long>> groupSelections = request.getGroupSelections();
-    if (groupSelections == null || groupSelections.isEmpty()) {
-        throw new IllegalArgumentException("groupSelections must not be empty");
-    }
-
-    int gameNumberPlayed = request.getGameNumberPlayed();
-    char[] groupNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
-    List<MatchResponse> createdMatches = new ArrayList<>();
-
-    // 8. Với mỗi group (group là danh sách playerId), chuyển sang danh sách teamId tương ứng
-    for (int groupIndex = 0; groupIndex < groupSelections.size(); groupIndex++) {
-        List<Long> playerGroup = groupSelections.get(groupIndex);
-        if (playerGroup == null || playerGroup.isEmpty()) {
-            continue; // bỏ qua nhóm rỗng
+        class TeamStats {
+            Long teamId;
+            int wins = 0;
+            int losses = 0;
+            int ties = 0;
+            int matchesPlayed = 0; // số trận đã đấu
+            List<String> recentResults = new ArrayList<>();
+            TeamStats(Long teamId) { this.teamId = teamId; }
         }
 
-        List<Long> groupTeamIds = new ArrayList<>();
-        Set<Long> seenTeamIds = new HashSet<>();
+        Map<Long, TeamStats> statsMap = new HashMap<>();
 
-        for (Long playerId : playerGroup) {
-            if (playerId == null) continue;
-            Long teamId = playerIdToTeamId.get(playerId);
-            if (teamId == null) {
-                // player trong payload không thuộc bất kỳ team nào của tournament này ở round này
-                throw new IllegalArgumentException("Player " + playerId + " không thuộc bất kỳ team nào của tournament " + tournament.getId() + " ở round " + request.getRoundNumber());
+        for (Match m : groupMatches) {
+            Long team1Id = m.getTeam1Id();
+            Long team2Id = m.getTeam2Id();
+            Integer score1 = m.getScoreTeam1();
+            Integer score2 = m.getScoreTeam2();
+
+            if (team1Id == null || team2Id == null || score1 == null || score2 == null) continue;
+
+            statsMap.putIfAbsent(team1Id, new TeamStats(team1Id));
+            statsMap.putIfAbsent(team2Id, new TeamStats(team2Id));
+
+            TeamStats t1 = statsMap.get(team1Id);
+            TeamStats t2 = statsMap.get(team2Id);
+
+            // Chưa đấu nếu 0-0
+            if (score1 == 0 && score2 == 0) {
+                t1.recentResults.add("ND"); // ND = chưa đấu
+                t2.recentResults.add("ND");
+                continue;
             }
-            // tránh trùng team (nếu một team có nhiều player)
-            if (!seenTeamIds.contains(teamId)) {
-                groupTeamIds.add(teamId);
-                seenTeamIds.add(teamId);
+
+            t1.matchesPlayed++;
+            t2.matchesPlayed++;
+
+            if (score1 > score2) {
+                t1.wins++; t2.losses++;
+                t1.recentResults.add("W"); t2.recentResults.add("L");
+            } else if (score1 < score2) {
+                t1.losses++; t2.wins++;
+                t1.recentResults.add("L"); t2.recentResults.add("W");
+            } else {
+                t1.ties++; t2.ties++;
+                t1.recentResults.add("T"); t2.recentResults.add("T");
             }
         }
 
-        if (groupTeamIds.isEmpty()) continue; // không có team hợp lệ trong group này
+        // Lấy danh sách team
+        List<Long> teamIds = new ArrayList<>(statsMap.keySet());
+        List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(teamIds);
+        Map<Long, List<Long>> teamToPlayerIds = teamPlayers.stream()
+                .collect(Collectors.groupingBy(
+                        TeamPlayer::getTeamId,
+                        Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+                ));
+        Map<Long, Team> teamMap = teamRepository.findAllById(teamIds)
+                .stream().collect(Collectors.toMap(Team::getId, t -> t));
 
-        // 9. Đảm bảo số team chẵn (thêm null làm bye nếu cần)
-        if (groupTeamIds.size() % 2 != 0) {
-            groupTeamIds.add(null);
+        // Tổng số trận phải đấu = số trận trong bảng mỗi team
+        int totalMatchesInGroup = groupMatches.size();
+        Map<Long, Long> matchesPerTeam = new HashMap<>();
+        for (Match m : groupMatches) {
+            matchesPerTeam.put(m.getTeam1Id(), matchesPerTeam.getOrDefault(m.getTeam1Id(), 0L) + 1);
+            matchesPerTeam.put(m.getTeam2Id(), matchesPerTeam.getOrDefault(m.getTeam2Id(), 0L) + 1);
         }
 
-        int numRounds = groupTeamIds.size() - 1;
-        String groupLabel = groupNames.length > groupIndex ? String.valueOf(groupNames[groupIndex]) : ("G" + (groupIndex + 1));
+        List<RoundRobinTeamResponse> rankingList = statsMap.values().stream()
+                .map(ts -> {
+                    Team team = teamMap.get(ts.teamId);
+                    if (team == null) return null;
+                    List<Long> playerIds = teamToPlayerIds.getOrDefault(team.getId(), List.of());
+                    List<PlayerResponse> playerResponses = playerIds.isEmpty() ? List.of() :
+                            playerRepository.findAllById(playerIds).stream()
+                                    .map(playerMapper::entityToResponse)
+                                    .toList();
 
-        // 10. Sinh match cho từng vòng trong group (circle method)
-        List<Long> rotating = new ArrayList<>(groupTeamIds); // sẽ xoay vòng
-        for (int r = 0; r < numRounds; r++) {
-            int numMatchesPerRound = rotating.size() / 2;
-            for (int i = 0; i < numMatchesPerRound; i++) {
-                Long team1 = rotating.get(i);
-                Long team2 = rotating.get(rotating.size() - 1 - i);
+                    TeamResponse teamResp = new TeamResponse(
+                            team.getId(),
+                            team.getWorkspaceId(),
+                            team.getTeamName(),
+                            playerResponses,
+                            team.getCreatedAt(),
+                            team.getUpdatedAt()
+                    );
 
-                if (team1 == null || team2 == null) continue; // bye
+                    return new RoundRobinTeamResponse(
+                            teamResp,
+                            ts.wins,
+                            ts.losses,
+                            ts.ties,
+                            ts.recentResults,
+                            ts.matchesPlayed,
+                            matchesPerTeam.getOrDefault(ts.teamId, 0L).intValue()
+                    );
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingInt((RoundRobinTeamResponse r) -> r.getWins()).reversed())
+                .toList();
 
-                gameNumberPlayed += 1;
+        rankingsMap.put(groupIndex++, rankingList);
+    }
 
-                Match match = new Match()
+    return new RoundRobinRankingResponse(rankingsMap);
+}
+
+
+        @Override
+        public void createOtherRoundType(OtherRoundTypeRequest request, Long workspaceId) {
+            // 1. Lấy tournament và kiểm tra workspace
+            Tournament tournament = tournamentRepository.findById(request.getTournamentId())
+                    .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+            if (!tournament.getWorkspaceId().equals(workspaceId)) {
+                throw new IllegalArgumentException("Tournament does not belong to the specified workspaceId");
+            }
+
+            // 2. Cập nhật trạng thái round tương ứng
+            switch (request.getRoundNumber()) {
+                case 1 -> {
+                    tournament.setRound1PlayersAfter(request.getRoundPlayersAfter());
+                    tournament.setRound1Status(Tournament.TournamentRoundStatus.ONGOING);
+                }
+                case 2 -> {
+                    tournament.setRound2PlayersAfter(request.getRoundPlayersAfter());
+                    tournament.setRound2Status(Tournament.TournamentRoundStatus.ONGOING);
+                }
+                case 3 -> tournament.setRound3Status(Tournament.TournamentRoundStatus.ONGOING);
+                default -> throw new IllegalArgumentException("Invalid round number: must be 1, 2, or 3");
+            }
+            tournamentRepository.save(tournament);
+            switch (request.getRoundType()) {
+                case SPECIAL_DEN:
+                case ROUND_ROBIN:
+                case CUSTOM:
+                    // Không thực hiện gì
+                    break;
+                case SINGLE_ELIMINATION:
+                    handleSingleElimination(request, workspaceId);
+                    break;
+                case DOUBLE_ELIMINATION:
+                    handleDoubleElimination(request, workspaceId);
+                    break;
+                case SWEDISH:
+                    handleSwedish(request, workspaceId);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported tournament type: " + request.getRoundType());
+            }
+        }
+
+    private List<MatchResponse> handleSingleElimination(OtherRoundTypeRequest request, Long workspaceId) {
+        Tournament tournament = tournamentRepository.findById(request.getTournamentId())
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        if (!Objects.equals(tournament.getWorkspaceId(), workspaceId)) {
+            throw new IllegalArgumentException("Tournament does not belong to the specified workspace");
+        }
+
+        List<Long> playerIds = new ArrayList<>(Optional.ofNullable(request.getListPlayerIds()).orElse(Collections.emptyList()));
+        if (playerIds.size() < 2) {
+            throw new IllegalArgumentException("Need at least 2 players to create single elimination bracket");
+        }
+
+        // 1) pad lên power of two
+        int numPlayers = playerIds.size();
+        int bracketSize = 1;
+        while (bracketSize < numPlayers) bracketSize <<= 1;
+        int totalRounds = (int) (Math.log(bracketSize) / Math.log(2));
+        int totalMatches = bracketSize - 1;
+
+        // 2) prepare slots array and distribute players into slots by recursive halving
+        Long[] slots = new Long[bracketSize]; // slot contains playerId or null
+        Collections.shuffle(playerIds);
+        distributePlayersToSlots(new ArrayList<>(playerIds), slots, 0, bracketSize);
+
+        // 3) create a Team for every slot (so team1_id/team2_id never null)
+        List<Team> slotTeams = new ArrayList<>(bracketSize);
+        for (int i = 0; i < bracketSize; i++) {
+            Team t = new Team().setWorkspaceId(workspaceId).setTeamName("Slot " + (i + 1));
+            slotTeams.add(t);
+        }
+        slotTeams = teamRepository.saveAll(slotTeams);
+
+        // 4) for slots that have playerIds, create TeamPlayer link
+        for (int i = 0; i < bracketSize; i++) {
+            Long pid = slots[i];
+            if (pid != null) {
+                Team team = slotTeams.get(i);
+                TeamPlayer tp = new TeamPlayer()
+                        .setWorkspaceId(workspaceId)
+                        .setTeamId(team.getId())
+                        .setPlayerId(pid)
+                        .setJoinedAt(LocalDateTime.now());
+                teamPlayerRepository.save(tp);
+                // optional: set team name to player name
+                // playerRepository.findById(pid).ifPresent(p -> { team.setTeamName(p.getName()); teamRepository.save(team); });
+            }
+        }
+
+        // 5) create matches round by round
+        // We'll keep matchesByRound[1..totalRounds], index 0 unused
+        List<List<Match>> matchesByRound = new ArrayList<>(totalRounds + 1);
+        matchesByRound.add(Collections.emptyList()); // index 0 unused
+        int globalGameNumber = 1;
+
+        // Round 1: pair slots (0,1), (2,3), ...
+        int matchesInRound = bracketSize / 2;
+        List<Match> round1 = new ArrayList<>(matchesInRound);
+        for (int i = 0; i < matchesInRound; i++) {
+            int a = 2 * i;
+            int b = 2 * i + 1;
+            Match m = new Match()
+                    .setWorkspaceId(workspaceId)
+                    .setTournamentId(tournament.getId())
+                    .setTeam1Id(slotTeams.get(a).getId())
+                    .setTeam2Id(slotTeams.get(b).getId())
+                    .setScoreTeam1(0)
+                    .setScoreTeam2(0)
+                    .setMatchCategory(Match.MatchCategory.TOURNAMENT)
+                    .setMatchType(determineMatchType(matchesInRound))
+                    .setStatus(Match.MatchStatus.UPCOMING)
+                    .setMatchDate(DateUtils.getCurrentDateString())
+                    .setRound(1)
+                    .setTournamentRoundType(Tournament.TournamentType.SINGLE_ELIMINATION)
+                    .setTournamentRound(request.getRoundNumber())
+                    .setGameNumber(globalGameNumber++);
+            // set note branch A/B: first half matches -> Branch A, second half -> Branch B
+            m.setNote(i < matchesInRound / 2 ? "Branch A" : "Branch B");
+            // ✅ Lấy danh sách player trong mỗi team
+            List<TeamPlayer> team1Players = teamPlayerRepository.findByTeamId(m.getTeam1Id());
+            List<TeamPlayer> team2Players = teamPlayerRepository.findByTeamId(m.getTeam2Id());
+
+// ✅ Kiểm tra có player hay không
+            boolean team1HasPlayer = team1Players != null && !team1Players.isEmpty();
+            boolean team2HasPlayer = team2Players != null && !team2Players.isEmpty();
+            // ✅ Xử lý auto-win cho team ảo
+            if (team1HasPlayer && !team2HasPlayer) {
+                m.setWinnerId(m.getTeam1Id());
+                m.setStatus(Match.MatchStatus.NOT_STARTED);
+//                matchRepository.save(m);
+//                matchServiceImpl.propagateWinnerToNextMatch(m, m.getWinnerId()); // ⬅️ Tự động đẩy lên vòng sau nếu có
+            } else if (!team1HasPlayer && team2HasPlayer) {
+                m.setWinnerId(m.getTeam2Id());
+                m.setStatus(Match.MatchStatus.NOT_STARTED);
+//                matchRepository.save(m);
+//                matchServiceImpl.propagateWinnerToNextMatch(m, m.getWinnerId());
+            } else if (!team1HasPlayer && !team2HasPlayer) {
+                // Cả hai là team ảo → giữ nguyên (UPCOMING)
+                m.setStatus(Match.MatchStatus.UPCOMING);
+                m.setWinnerId(null);
+//                matchRepository.save(m);
+            } else {
+                // Cả hai là team thật → vẫn UPCOMING (sẽ thi đấu sau)
+                m.setStatus(Match.MatchStatus.UPCOMING);
+//                matchRepository.save(m);
+            }
+            round1.add(m);
+
+        }
+        matchesByRound.add(round1);
+
+        // For subsequent rounds, we need placeholder teams for winners of previous round
+        List<Team> prevRoundWinnerTeams = new ArrayList<>();
+        for (int i = 0; i < round1.size(); i++) {
+            Team wt = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + (i + 1));
+            prevRoundWinnerTeams.add(wt);
+        }
+        prevRoundWinnerTeams = teamRepository.saveAll(prevRoundWinnerTeams);
+
+        // rounds 2..totalRounds
+        for (int r = 2; r <= totalRounds; r++) {
+            int thisMatches = bracketSize / (1 << r); // N / 2^r
+            List<Match> thisRound = new ArrayList<>(thisMatches);
+
+            // create placeholder winner teams for THIS round (to be used by next round)
+            List<Team> thisRoundWinnerTeams = new ArrayList<>();
+            for (int i = 0; i < thisMatches; i++) {
+                Team placeholder = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + (i + 1));
+                thisRoundWinnerTeams.add(placeholder);
+            }
+            thisRoundWinnerTeams = teamRepository.saveAll(thisRoundWinnerTeams);
+
+            // pair prevRoundWinnerTeams (2-by-2)
+            for (int i = 0; i < thisMatches; i++) {
+                int leftIndex = 2 * i;
+                int rightIndex = 2 * i + 1;
+                Long team1Id = prevRoundWinnerTeams.get(leftIndex).getId();
+                Long team2Id = prevRoundWinnerTeams.get(rightIndex).getId();
+
+                Match m = new Match()
                         .setWorkspaceId(workspaceId)
                         .setTournamentId(tournament.getId())
-                        .setTeam1Id(team1)
-                        .setTeam2Id(team2)
+                        .setTeam1Id(team1Id)
+                        .setTeam2Id(team2Id)
                         .setScoreTeam1(0)
                         .setScoreTeam2(0)
                         .setMatchCategory(Match.MatchCategory.TOURNAMENT)
-                        .setMatchType(Match.MatchType.GROUP)
+                        .setMatchType(determineMatchType(thisMatches))
                         .setStatus(Match.MatchStatus.UPCOMING)
                         .setMatchDate(DateUtils.getCurrentDateString())
-                        .setNote(groupLabel)
-                        .setRound(r + 1) // vòng trong group
-                        .setTournamentRoundType(Tournament.TournamentType.ROUND_ROBIN)
+                        .setRound(r)
+                        .setTournamentRoundType(Tournament.TournamentType.SINGLE_ELIMINATION)
                         .setTournamentRound(request.getRoundNumber())
-                        .setGameNumber(gameNumberPlayed);
+                        .setGameNumber(globalGameNumber++);
+                // set branch note: first half of matches -> Branch A else B
+                m.setNote(i < thisMatches / 2 ? "Branch A" : "Branch B");
 
-                matchRepository.save(match);
-
-                MatchResponse response = new MatchResponse()
-                        .setId(match.getId())
-                        .setWorkspaceId(match.getWorkspaceId())
-                        .setTournamentId(match.getTournamentId())
-                        .setTournamentRoundType(match.getTournamentRoundType())
-                        .setTeam1Id(match.getTeam1Id())
-                        .setTeam2Id(match.getTeam2Id())
-                        .setScoreTeam1(match.getScoreTeam1())
-                        .setScoreTeam2(match.getScoreTeam2())
-                        .setMatchType(match.getMatchType())
-                        .setMatchCategory(match.getMatchCategory())
-                        .setMatchDate(match.getMatchDate())
-                        .setNote(match.getNote())
-                        .setRound(match.getRound())
-                        .setGameNumber(match.getGameNumber())
-                        .setStatus(match.getStatus())
-                        .setWinnerId(match.getWinnerId())
-                        .setCreatedAt(match.getCreatedAt())
-                        .setUpdatedAt(match.getUpdatedAt());
-
-                createdMatches.add(response);
+                thisRound.add(m);
             }
 
-            // Xoay: giữ phần tử đầu, xoay phần còn lại sang phải 1
-            Long first = rotating.get(0);
-            List<Long> rest = new ArrayList<>(rotating.subList(1, rotating.size()));
-            Collections.rotate(rest, 1); // xoay phải 1
-            List<Long> newRot = new ArrayList<>();
-            newRot.add(first);
-            newRot.addAll(rest);
-            rotating = newRot;
-        }
-    }
-
-    return createdMatches;
-}
-
-    @Override
-    public RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long workspaceId, int roundNumber) {
-        // 1️⃣ Kiểm tra tournament có thuộc workspace không
-        Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found: " + tournamentId));
-
-        if (!tournament.getWorkspaceId().equals(workspaceId)) {
-            throw new IllegalArgumentException("Tournament does not belong to workspace " + workspaceId);
+            matchesByRound.add(thisRound);
+            prevRoundWinnerTeams = thisRoundWinnerTeams; // for next round
         }
 
-        // 2️⃣ Lấy danh sách trận đấu (lọc theo round + loại ROUND_ROBIN)
-        List<Match> matches = matchRepository.findByTournamentIdAndWorkspaceIdAndTournamentRound(
-                tournamentId, workspaceId, roundNumber
-        );
+        // Flatten and save all matches
+        List<Match> allMatches = matchesByRound.stream().skip(1).flatMap(List::stream).toList();
+        allMatches = matchRepository.saveAll(allMatches);
 
-        // Nếu repository chưa có hàm này, thêm vào:
-        // List<Match> findByTournamentIdAndWorkspaceIdAndTournamentRound(Long tournamentId, Long workspaceId, Integer tournamentRound);
-
-        // 3️⃣ Nhóm theo bảng (note = "A","B","C"...)
-        Map<String, List<Match>> matchesByGroup = matches.stream()
-                .filter(m -> m.getTournamentRoundType() == Tournament.TournamentType.ROUND_ROBIN)
-                .filter(m -> m.getNote() != null && !m.getNote().isEmpty())
-                .collect(Collectors.groupingBy(Match::getNote));
-
-        // 4️⃣ Tạo kết quả cho từng bảng
-        Map<Integer, List<RoundRobinTeamResponse>> rankingsMap = new HashMap<>();
-        int groupIndex = 1; // A=1, B=2,...
-
-        for (Map.Entry<String, List<Match>> entry : matchesByGroup.entrySet()) {
-            List<Match> groupMatches = entry.getValue();
-
-            class TeamStats {
-                Long teamId;
-                int wins = 0;
-                int losses = 0;
-                int ties = 0;
-                List<String> recentResults = new ArrayList<>();
-                TeamStats(Long teamId) { this.teamId = teamId; }
-            }
-
-            Map<Long, TeamStats> statsMap = new HashMap<>();
-
-            for (Match m : groupMatches) {
-                Long team1Id = m.getTeam1Id();
-                Long team2Id = m.getTeam2Id();
-                Integer score1 = m.getScoreTeam1();
-                Integer score2 = m.getScoreTeam2();
-
-                if (team1Id == null || team2Id == null || score1 == null || score2 == null) continue;
-
-                statsMap.putIfAbsent(team1Id, new TeamStats(team1Id));
-                statsMap.putIfAbsent(team2Id, new TeamStats(team2Id));
-
-                TeamStats t1 = statsMap.get(team1Id);
-                TeamStats t2 = statsMap.get(team2Id);
-
-                if (score1 > score2) {
-                    t1.wins++; t2.losses++;
-                    t1.recentResults.add("W"); t2.recentResults.add("L");
-                } else if (score1 < score2) {
-                    t1.losses++; t2.wins++;
-                    t1.recentResults.add("L"); t2.recentResults.add("W");
-                } else {
-                    t1.ties++; t2.ties++;
-                    t1.recentResults.add("T"); t2.recentResults.add("T");
+        // Build mapping from matchesByRound lists to saved match IDs (they are same order)
+        // Set nextMatchIfWin: for r from 1 to totalRounds-1, match k -> next round match index k/2
+        for (int r = 1; r <= totalRounds - 1; r++) {
+            List<Match> cur = matchesByRound.get(r);
+            List<Match> nxt = matchesByRound.get(r + 1);
+            for (int k = 0; k < cur.size(); k++) {
+                int nextIdx = k / 2;
+                if (nextIdx < nxt.size()) {
+                    cur.get(k).setNextMatchIfWin(nxt.get(nextIdx).getId());
                 }
             }
-
-            // 5️⃣ Lấy danh sách team từ repository
-            List<Long> teamIds = new ArrayList<>(statsMap.keySet());
-            List<TeamPlayer> teamPlayers = teamPlayerRepository.findByTeamIdIn(teamIds);
-            // 3️⃣ Tạo map teamId -> list playerId
-            Map<Long, List<Long>> teamToPlayerIds = teamPlayers.stream()
-                    .collect(Collectors.groupingBy(
-                            TeamPlayer::getTeamId,
-                            Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
-                    ));
-            Map<Long, Team> teamMap = teamRepository.findAllById(teamIds)
-                    .stream().collect(Collectors.toMap(Team::getId, t -> t));
-
-            // 6️⃣ Map sang DTO RoundRobinTeamResponse
-
-            List<RoundRobinTeamResponse> rankingList = statsMap.values().stream()
-                    .map(ts -> {
-                        Team team = teamMap.get(ts.teamId);
-                        if (team == null) return null;
-                        // Lấy playerIds của team
-                        List<Long> playerIds = teamToPlayerIds.getOrDefault(team.getId(), List.of());
-
-                        // Map sang PlayerResponse
-                        List<PlayerResponse> playerResponses = playerIds.isEmpty() ? List.of() :
-                                playerRepository.findAllById(playerIds).stream()
-                                        .map(playerMapper::entityToResponse)
-                                        .toList();
-                        TeamResponse teamResp = new TeamResponse(
-                                team.getId(),
-                                team.getWorkspaceId(),
-                                team.getTeamName(),
-                                playerResponses,
-                                team.getCreatedAt(),
-                                team.getUpdatedAt()
-                        );
-                        return new RoundRobinTeamResponse(teamResp, ts.wins, ts.losses, ts.ties, ts.recentResults);
-                    })
-                    .filter(Objects::nonNull)
-                    .sorted(Comparator.comparingInt((RoundRobinTeamResponse r) -> r.getWins()).reversed())
-                    .toList();
-
-            // 7️⃣ Lưu vào rankingsMap (theo chỉ số bảng)
-            rankingsMap.put(groupIndex++, rankingList);
+            matchRepository.saveAll(cur);
         }
 
-        return new RoundRobinRankingResponse(rankingsMap);
+        // Return responses (flattened)
+        List<Match> updatedAll = matchesByRound.stream().skip(1).flatMap(List::stream).toList();
+        return updatedAll.stream().map(matchMapper::entityToResponse).toList();
+    }
+
+    /**
+     * Recursively distribute players into slot array so halves get balanced counts.
+     * players: copy list of playerIds (will not be mutated externally).
+     * slots: Long[] of size equal to bracketSize
+     * start: start index in slots to fill
+     * len: length of block (power of two)
+     */
+    private void distributePlayersToSlots(List<Long> players, Long[] slots, int start, int len) {
+        if (len == 1) {
+            // if we have at least one player, place first; else leave null (bye)
+            if (!players.isEmpty()) {
+                slots[start] = players.remove(0);
+            } else {
+                slots[start] = null;
+            }
+            return;
+        }
+        // split players into left and right groups as evenly as possible
+        int leftCount = (players.size() + 1) / 2; // ceil
+        List<Long> leftPlayers = new ArrayList<>(players.subList(0, Math.min(leftCount, players.size())));
+        List<Long> rightPlayers = new ArrayList<>();
+        if (players.size() > leftPlayers.size()) {
+            rightPlayers.addAll(players.subList(leftPlayers.size(), players.size()));
+        }
+        // Recurse into left half and right half
+        distributePlayersToSlots(leftPlayers, slots, start, len / 2);
+        distributePlayersToSlots(rightPlayers, slots, start + len / 2, len / 2);
+    }
+
+    /**
+     * Pick a MatchType based on how many matches in this round (optional)
+     */
+    private Match.MatchType determineMatchType(int matchesInThisRound) {
+        if (matchesInThisRound == 1) return Match.MatchType.FINAL;
+        if (matchesInThisRound == 2) return Match.MatchType.SEMIFINAL;
+        if (matchesInThisRound == 4) return Match.MatchType.QUARTERFINAL;
+        if (matchesInThisRound == 8) return Match.MatchType.LAST16;
+        return Match.MatchType.GROUP;
     }
 
 
 
 
+
+
+
+    private void handleDoubleElimination(OtherRoundTypeRequest request, Long workspaceId) {
+            // TODO: implement logic for DOUBLE_ELIMINATION
+        }
+
+        private void handleSwedish(OtherRoundTypeRequest request, Long workspaceId) {
+            // TODO: implement logic for SWEDISH
+        }
+
+    private Match.MatchType getMatchTypeByRound(int round, int totalPlayers) {
+        int totalRounds = (int) (Math.log(totalPlayers) / Math.log(2));
+        if (round == totalRounds) return Match.MatchType.FINAL;
+        if (round == totalRounds - 1) return Match.MatchType.SEMIFINAL;
+        if (round == totalRounds - 2) return Match.MatchType.QUARTERFINAL;
+        return Match.MatchType.LAST16; // fallback cho vòng sớm hơn
+    }
 
 }

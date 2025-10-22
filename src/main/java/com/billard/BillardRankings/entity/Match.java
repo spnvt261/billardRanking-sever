@@ -73,6 +73,13 @@ public class Match extends BaseEntity {
     
     @Column(name = "winner_id")
     private Long winnerId;
+
+    // 🆕 Liên kết các trận kế tiếp
+    @Column(name = "next_match_if_win")
+    private Long nextMatchIfWin;
+
+    @Column(name = "next_match_if_losses")
+    private Long nextMatchIfLosses;
     
     public enum MatchType {
         GROUP, QUARTERFINAL, SEMIFINAL, FINAL, THIRD_PLACE, LAST16, LAST32

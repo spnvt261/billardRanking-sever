@@ -36,6 +36,12 @@ public abstract class MatchMapper implements GenericMapper<Match, MatchRequest, 
     public abstract Match partialUpdate(@MappingTarget Match entity, MatchRequest request);
 
     /**
+     * ⚙️ Thêm hàm này để dùng trong MatchServiceImpl
+     * Dùng để cập nhật entity từ request (chỉ ghi đè field có giá trị)
+     */
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    public abstract void updateEntityFromRequest(MatchRequest request, @MappingTarget Match match);
+    /**
      * Tự động gắn thông tin team1, team2 vào MatchResponse
      */
     @AfterMapping

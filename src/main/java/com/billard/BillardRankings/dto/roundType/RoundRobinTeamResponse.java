@@ -16,4 +16,6 @@ public class RoundRobinTeamResponse {
     private int losses;
     private int ties;
     private List<String> recentResults;
+    private int matchesPlayed; // số trận đã đấu
+    private int matchesTotal;  // tổng số trận phải đấu
 }

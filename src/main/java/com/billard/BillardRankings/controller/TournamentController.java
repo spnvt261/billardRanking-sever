@@ -5,6 +5,7 @@ import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.MatchResponse;
 import com.billard.BillardRankings.dto.TournamentRequest;
 import com.billard.BillardRankings.dto.TournamentResponse;
+import com.billard.BillardRankings.dto.roundType.OtherRoundTypeRequest;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRankingResponse;
 import com.billard.BillardRankings.dto.roundType.RoundRobinRequest;
 import com.billard.BillardRankings.service.TournamentService;
@@ -114,6 +115,23 @@ public class TournamentController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to create round robin: " + e.getMessage());
+        }
+    }
+
+    // TournamentController.java
+    @PostMapping("/other-round-type")
+    public ResponseEntity<?> createOtherRoundType(
+            @RequestBody OtherRoundTypeRequest request,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        try {
+            // Gọi service, hiện tại chưa có logic
+            tournamentService.createOtherRoundType(request, workspaceId);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Other round type created successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create other round type: " + e.getMessage());
         }
     }
 
