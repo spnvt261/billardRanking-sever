@@ -1,28 +1,35 @@
-# Sử dụng image Java chính thức
-FROM openjdk:17-jdk-slim
+# --- Stage 1: Build ---
+FROM openjdk:17-jdk-slim AS build
 
-# Thiết lập thư mục làm việc bên trong container
 WORKDIR /app
 
-# Copy file pom.xml trước để tải dependencies
+# Copy file cấu hình Maven trước (để cache dependencies)
 COPY pom.xml ./
-
-# Nếu có Maven Wrapper, copy luôn
 COPY mvnw ./
 COPY .mvn ./.mvn
 
-# Cấp quyền thực thi cho mvnw
+# Cấp quyền thực thi cho Maven Wrapper
 RUN chmod +x mvnw
 
-# Cài đặt dependencies (skip test để nhanh hơn)
-RUN ./mvnw dependency:resolve -DskipTests
+# Cài dependencies (skip test)
+RUN ./mvnw dependency:go-offline -DskipTests
 
 # Copy toàn bộ source code
 COPY src ./src
 
-# Build project thành jar
-RUN ./mvnw package -DskipTests
+# Build project
+RUN ./mvnw clean package -DskipTests
 
-# Lệnh chạy app khi container start
-# Lưu ý: thay 'your-app.jar' bằng tên file jar thực tế trong target
-CMD ["java", "-jar", "target/billardRanking-sever-0.0.1-SNAPSHOT.jar"]
+# --- Stage 2: Runtime ---
+FROM openjdk:17-jdk-slim
+
+WORKDIR /app
+
+# Copy file jar từ stage build
+COPY --from=build /app/target/*.jar app.jar
+
+# Expose port cho Render (Render sẽ set PORT)
+EXPOSE 8080
+
+# Lệnh khởi chạy
+ENTRYPOINT ["java", "-jar", "app.jar"]
