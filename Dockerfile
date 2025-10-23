@@ -16,7 +16,6 @@ RUN ./mvnw dependency:go-offline -DskipTests
 
 # Copy toàn bộ source code
 COPY src ./src
-
 # Build project
 RUN ./mvnw clean package -DskipTests
 

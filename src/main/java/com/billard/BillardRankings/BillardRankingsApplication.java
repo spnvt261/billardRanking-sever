@@ -9,7 +9,12 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 public class BillardRankingsApplication {
 
 	public static void main(String[] args) {
-		Dotenv dotenv = Dotenv.load(); // tự động đọc file .env ở project root
+		Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+//		try {
+//			dotenv = Dotenv.load();
+//		} catch (Exception e) {
+//			System.out.println("⚠️ .env file not found — using system environment variables instead.");
+//		}
 
 		// Thiết lập biến hệ thống để Spring Boot có thể đọc
 		System.setProperty("CLOUDINARY_CLOUD_NAME", dotenv.get("CLOUDINARY_CLOUD_NAME"));
