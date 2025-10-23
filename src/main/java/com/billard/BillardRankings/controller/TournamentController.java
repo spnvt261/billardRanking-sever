@@ -68,6 +68,15 @@ public class TournamentController {
         return ResponseEntity.status(HttpStatus.OK).body(tournamentService.save(id, request,roundNumber));
     }
 
+    @PutMapping("/{id}/basic")
+    public ResponseEntity<TournamentResponse> updateTournamentBasic(
+            @PathVariable("id") Long id,
+            @RequestBody TournamentRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(tournamentService.save(id, request)); // ✅ không cần roundNumber
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTournament(
             @PathVariable("id") Long id,

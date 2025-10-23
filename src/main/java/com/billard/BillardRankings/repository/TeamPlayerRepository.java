@@ -12,5 +12,6 @@ public interface TeamPlayerRepository extends JpaRepository<TeamPlayer, Long>, J
     List<TeamPlayer> findByTeamId(Long teamId);
     List<TeamPlayer> findByPlayerId(Long playerId);
     List<TeamPlayer> findByTeamIdIn(List<Long> teamIds);
+    boolean existsByTeamId(Long teamId);
 
 }

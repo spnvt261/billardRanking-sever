@@ -471,6 +471,32 @@ public class TournamentServiceImpl
         tournamentTeamRepository.saveAll(newTournamentTeams);
     }
 
+    @Override
+    @Transactional
+    public TournamentResponse save(Long id, TournamentRequest request) {
+        // 1️⃣ Kiểm tra tournament tồn tại
+        validatePlayersWorkspace(request);
+
+        Tournament existing = tournamentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Tournament not found (id=" + id + ")"));
+
+        // 2️⃣ Cập nhật thông tin cơ bản (tên, ngày, mô tả, v.v.)
+        tournamentMapper.updateEntityFromRequest(request, existing);
+        Tournament saved = tournamentRepository.save(existing);
+
+        // ✅ Gán format mặc định nếu null
+        if (request.getFormat() == null) {
+            request.setFormat(Tournament.TournamentFormat.SINGLE);
+        }
+
+        // 3️⃣ Xử lý danh sách playerIds (nếu có)
+        if (request.getPlayerIds() != null && !request.getPlayerIds().isEmpty()) {
+
+        }
+
+        // 4️⃣ Trả về response
+        return buildTournamentResponse(saved, true);
+    }
 
     @Override
     @Transactional
@@ -1061,8 +1087,92 @@ public RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long w
 
         rankingsMap.put(groupIndex++, rankingList);
     }
+        // ----------- PHẦN 2: XỬ LÝ CÁC THỂ THỨC KHÁC (TỐI ƯU) ------------------
+        Map<Tournament.TournamentType, List<TeamResponse>> otherTypesTeams = new HashMap<>();
 
-    return new RoundRobinRankingResponse(rankingsMap);
+// Gom tất cả match không phải Round Robin
+        List<Match> otherMatches = matches.stream()
+                .filter(m -> m.getTournamentRoundType() != Tournament.TournamentType.ROUND_ROBIN)
+                .toList();
+
+// Gom tất cả teamId có thể xuất hiện
+        Set<Long> allTeamIds = otherMatches.stream()
+                .flatMap(m -> Stream.of(m.getWinnerId(), m.getTeam1Id(), m.getTeam2Id()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+// Lấy trước toàn bộ teamPlayers & team
+        List<TeamPlayer> allTeamPlayers = teamPlayerRepository.findByTeamIdIn(new ArrayList<>(allTeamIds));
+        Map<Long, List<Long>> teamToPlayerIds = allTeamPlayers.stream()
+                .collect(Collectors.groupingBy(
+                        TeamPlayer::getTeamId,
+                        Collectors.mapping(TeamPlayer::getPlayerId, Collectors.toList())
+                ));
+
+        Map<Long, Team> teamMap = teamRepository.findAllById(allTeamIds).stream()
+                .collect(Collectors.toMap(Team::getId, t -> t));
+
+// Lấy tất cả Player 1 lần để tránh gọi lại DB nhiều lần
+        Set<Long> allPlayerIds = allTeamPlayers.stream()
+                .map(TeamPlayer::getPlayerId)
+                .collect(Collectors.toSet());
+        Map<Long, PlayerResponse> playerResponseMap = playerRepository.findAllById(new ArrayList<>(allPlayerIds))
+                .stream()
+                .collect(Collectors.toMap(p -> p.getId(), playerMapper::entityToResponse));
+
+// Bắt đầu xử lý theo từng thể thức
+        for (Tournament.TournamentType type : Tournament.TournamentType.values()) {
+            if (type == Tournament.TournamentType.ROUND_ROBIN) continue;
+
+            List<Match> matchesOfType = otherMatches.stream()
+                    .filter(m -> m.getTournamentRoundType() == type)
+                    .sorted(Comparator.comparingLong(Match::getId).reversed())
+                    .toList();
+
+            Set<Long> addedTeamIds = new HashSet<>();
+            List<TeamResponse> teamResponses = new ArrayList<>();
+
+            for (Match m : matchesOfType) {
+                List<Long> candidateIds = Stream.of(m.getWinnerId(), m.getTeam1Id(), m.getTeam2Id())
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                for (Long teamId : candidateIds) {
+                    if (addedTeamIds.contains(teamId)) continue;
+
+                    // Chỉ thêm nếu team có trong bảng team_players
+                    if (teamToPlayerIds.containsKey(teamId)) {
+                        Team team = teamMap.get(teamId);
+                        if (team == null) continue;
+
+                        List<Long> playerIds = teamToPlayerIds.getOrDefault(teamId, List.of());
+                        List<PlayerResponse> playerResponses = playerIds.stream()
+                                .map(playerResponseMap::get)
+                                .filter(Objects::nonNull)
+                                .toList();
+
+                        TeamResponse teamResp = new TeamResponse(
+                                team.getId(),
+                                team.getWorkspaceId(),
+                                team.getTeamName(),
+                                playerResponses,
+                                team.getCreatedAt(),
+                                team.getUpdatedAt()
+                        );
+
+                        teamResponses.add(teamResp);
+                        addedTeamIds.add(teamId);
+                    }
+                }
+            }
+
+            if (!teamResponses.isEmpty()) {
+                otherTypesTeams.put(type, teamResponses);
+            }
+        }
+
+
+        return new RoundRobinRankingResponse(rankingsMap,otherTypesTeams);
 }
 
 
@@ -1220,11 +1330,12 @@ public RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long w
 
         }
         matchesByRound.add(round1);
+        int placeholderCounter = request.getGameNumberPlayed() > 0 ? request.getGameNumberPlayed() : 1;
 
         // For subsequent rounds, we need placeholder teams for winners of previous round
         List<Team> prevRoundWinnerTeams = new ArrayList<>();
         for (int i = 0; i < round1.size(); i++) {
-            Team wt = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + (i + 1));
+            Team wt = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + placeholderCounter++);
             prevRoundWinnerTeams.add(wt);
         }
         prevRoundWinnerTeams = teamRepository.saveAll(prevRoundWinnerTeams);
@@ -1237,7 +1348,7 @@ public RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long w
             // create placeholder winner teams for THIS round (to be used by next round)
             List<Team> thisRoundWinnerTeams = new ArrayList<>();
             for (int i = 0; i < thisMatches; i++) {
-                Team placeholder = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + (i + 1));
+                Team placeholder = new Team().setWorkspaceId(workspaceId).setTeamName("Winner of #" + placeholderCounter++);
                 thisRoundWinnerTeams.add(placeholder);
             }
             thisRoundWinnerTeams = teamRepository.saveAll(thisRoundWinnerTeams);
