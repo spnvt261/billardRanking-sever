@@ -15,6 +15,7 @@ public interface TournamentService extends CrudService<Long, TournamentRequest, 
     List<MatchResponse>  createRoundRobin(RoundRobinRequest request, Long workspaceId);
     RoundRobinRankingResponse getRoundRobinRankings(Long tournamentId, Long workspaceId, int roundNumber);
     void createOtherRoundType(OtherRoundTypeRequest request, Long workspaceId);
+    TournamentResponse save(Long id, TournamentRequest request, int roundNumber);
 
 
 }

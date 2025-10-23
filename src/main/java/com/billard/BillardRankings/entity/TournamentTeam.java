@@ -10,8 +10,8 @@ import lombok.experimental.Accessors;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tournament_teams", 
-       uniqueConstraints = @UniqueConstraint(columnNames = {"tournament_id", "team_id"}))
+@Table(name = "tournament_teams")
+//       uniqueConstraints = @UniqueConstraint(columnNames = {"tournament_id", "team_id"}))
 @Getter
 @Setter
 @NoArgsConstructor

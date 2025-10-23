@@ -62,9 +62,10 @@ public class TournamentController {
     @PutMapping("/{id}")
     public ResponseEntity<TournamentResponse> updateTournament(
             @PathVariable("id") Long id,
+            @RequestParam("roundNumber") int roundNumber, // Lấy từ query param
             @RequestBody TournamentRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(tournamentService.save(id, request));
+        return ResponseEntity.status(HttpStatus.OK).body(tournamentService.save(id, request,roundNumber));
     }
 
     @DeleteMapping("/{id}")

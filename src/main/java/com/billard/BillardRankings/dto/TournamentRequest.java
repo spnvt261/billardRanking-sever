@@ -72,4 +72,6 @@ public class TournamentRequest {
 
     // ✅ Thêm list playerIds
     private List<Long> playerIds;
+
+    private List<Long> teamIds;
 }
