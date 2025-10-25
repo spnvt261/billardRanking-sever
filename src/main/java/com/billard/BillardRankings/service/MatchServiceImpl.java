@@ -22,6 +22,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -108,6 +109,13 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
         boolean team2Virtual = (team2Id == null) || teamPlayerRepository.findByTeamId(team2Id).isEmpty();
 
         Long winnerId = null;
+
+        if (request.getRaceTo() == null) {
+            request.setRaceTo(
+                    Math.max(request.getScoreTeam1(), request.getScoreTeam2())
+            );
+        }
+
 
         if (team1Virtual && !team2Virtual) {
             match.setStatus(Match.MatchStatus.NOT_STARTED);
@@ -233,6 +241,12 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
             team2Id = createTeamWithPlayers(request.getTeam2Players(), workspaceId, "Team 2");
         }
 
+        if (request.getRaceTo() == null) {
+            request.setRaceTo(
+                    Math.max(request.getScoreTeam1(), request.getScoreTeam2())
+            );
+        }
+
         // ✅ Map sang entity & gán teamId
         Match match = matchMapper.requestToEntity(request);
         match.setTeam1Id(team1Id);
@@ -280,6 +294,76 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
         return matchMapper.entityToResponse(match);
     }
 
+    @Override
+    public MatchResponse createScoreCounter(MatchRequest request) {
+        Long workspaceId = request.getWorkspaceId();
+
+        // ✅ Tạo mới Match entity
+        Match match = new Match();
+        matchMapper.updateEntityFromRequest(request, match); // copy dữ liệu cơ bản
+
+        // ✅ Gán giá trị mặc định
+        match.setStatus(Match.MatchStatus.ONGOING);
+        match.setScoreTeam1(0);
+        match.setScoreTeam2(0);
+
+        // ✅ Lưu đội 1 và đội 2 (nếu có danh sách player)
+        Long team1Id = match.getTeam1Id();
+        Long team2Id = match.getTeam2Id();
+
+        if (team1Id == null && request.getTeam1Players() != null && !request.getTeam1Players().isEmpty()) {
+            team1Id = createTeamWithPlayers(request.getTeam1Players(), workspaceId, "Team 1");
+            match.setTeam1Id(team1Id);
+        }
+
+        if (team2Id == null && request.getTeam2Players() != null && !request.getTeam2Players().isEmpty()) {
+            team2Id = createTeamWithPlayers(request.getTeam2Players(), workspaceId,"Team 2");
+            match.setTeam2Id(team2Id);
+        }
+
+        // ✅ Kiểm tra team ảo
+        boolean team1Virtual = (team1Id == null) || teamPlayerRepository.findByTeamId(team1Id).isEmpty();
+        boolean team2Virtual = (team2Id == null) || teamPlayerRepository.findByTeamId(team2Id).isEmpty();
+
+        Long winnerId = null;
+
+        // ✅ Thiết lập raceTo mặc định nếu chưa có
+        if (request.getRaceTo() == null) {
+            request.setRaceTo(0);
+            match.setRaceTo(0);
+        }
+
+        // ✅ Xác định winner (nếu cần)
+        if (team1Virtual && !team2Virtual) {
+            winnerId = team2Id;
+        } else if (!team1Virtual && team2Virtual) {
+            winnerId = team1Id;
+        } else {
+            winnerId = null; // chưa có winner khi mới tạo
+        }
+
+        match.setWinnerId(winnerId);
+
+        // ✅ Tạo token khóa score counter
+        String token = UUID.randomUUID().toString();
+        match.setScoreCounterLockToken(token);
+        match.setScoreCounterLockedAt(LocalDateTime.now());
+
+        // ✅ Lưu vào DB
+        matchRepository.save(match);
+
+        // ✅ Nếu có winner thật → propagate sang trận kế tiếp
+        if (winnerId != null && match.getNextMatchIfWin() != null) {
+            propagateWinnerToNextMatch(match, winnerId);
+        }
+
+        // ✅ Trả về response
+        MatchResponse response = matchMapper.entityToResponse(match);
+        response.setScoreCounterLockToken(token);
+        return response;
+    }
+
+
 
     private Long createTeamWithPlayers(List<Long> playerIds, Long workspaceId, String teamNamePrefix) {
         // ✅ Tạo team
@@ -312,6 +396,79 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
 
         return team.getId();
     }
+
+    @Override
+    public String lockScoreCounterByUuid(String uuid, Long workspaceId,int raceTo) {
+        Match match = matchRepository.findByUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+
+        if (!match.getWorkspaceId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Match does not belong to this workspace");
+        }
+
+        // Nếu đang bị khoá và chưa hết hạn (5 phút)
+        if (match.getScoreCounterLockToken() != null &&
+                match.getScoreCounterLockedAt() != null &&
+                match.getScoreCounterLockedAt().isAfter(LocalDateTime.now().minusMinutes(5))) {
+            throw new IllegalArgumentException("This match is currently locked by another user.");
+        }
+
+        match.setRaceTo(raceTo);
+        match.setStatus(Match.MatchStatus.ONGOING);
+
+        // Tạo token mới và lưu lại
+        String token = UUID.randomUUID().toString();
+        match.setScoreCounterLockToken(token);
+        match.setScoreCounterLockedAt(LocalDateTime.now());
+        matchRepository.save(match);
+        return token;
+    }
+
+    @Override
+    public void refreshScoreCounterLockByUuid(String uuid, Long workspaceId, String token) {
+        Match match = matchRepository.findByUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+
+        if (!match.getWorkspaceId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Match does not belong to this workspace");
+        }
+
+        if (!token.equals(match.getScoreCounterLockToken())) {
+            throw new IllegalArgumentException("Invalid token: cannot refresh lock.");
+        }
+
+        // Gia hạn thời gian khoá
+        match.setScoreCounterLockedAt(LocalDateTime.now());
+        matchRepository.save(match);
+    }
+
+    @Override
+    public boolean verifyScoreCounterToken(String uuid, String token) {
+        return matchRepository.findByUuid(uuid)
+                .map(m -> token != null && token.equals(m.getScoreCounterLockToken()))
+                .orElse(false);
+    }
+
+
+    @Override
+    public void unlockScoreCounterByUuid(String uuid, Long workspaceId, String token) {
+        Match match = matchRepository.findByUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+
+        if (!match.getWorkspaceId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Match does not belong to this workspace");
+        }
+
+        if (match.getScoreCounterLockToken() == null ||
+                !match.getScoreCounterLockToken().equals(token)) {
+            throw new IllegalArgumentException("Invalid or expired token: cannot unlock.");
+        }
+
+        match.setScoreCounterLockToken(null);
+        match.setScoreCounterLockedAt(null);
+        matchRepository.save(match);
+    }
+
 
 
 
@@ -391,4 +548,34 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
     protected Long getIdFromEntity(Match entity) {
         return entity.getId();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MatchResponse findByUuid(String uuid, Long workspaceId) {
+        // 1️⃣ Tìm match theo UUID
+        Match match = matchRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResourceNotFoundException(ResourceName.MATCH, "uuid", uuid));
+
+        // 2️⃣ Kiểm tra workspace hợp lệ
+        if (!Objects.equals(match.getWorkspaceId(), workspaceId)) {
+            throw new ResourceNotFoundException(ResourceName.MATCH, "workspaceId", workspaceId);
+        }
+
+        // 3️⃣ Map sang DTO
+        MatchResponse response = matchMapper.entityToResponse(match);
+
+        // 4️⃣ Lấy thông tin chi tiết 2 team
+        response.setTeam1(buildTeamResponse(match.getTeam1Id()));
+        response.setTeam2(buildTeamResponse(match.getTeam2Id()));
+
+        // 5️⃣ Nếu có tournament → set thêm tên
+        if (match.getTournamentId() != null) {
+            tournamentRepository.findById(match.getTournamentId())
+                    .ifPresent(tournament -> response.setTournamentName(tournament.getName()));
+        }
+
+        return response;
+    }
+
+
 }

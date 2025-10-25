@@ -24,7 +24,7 @@ public class MatchScoreEvent extends BaseEntity {
     @Column(name = "tournament_id")
     private Long tournamentId;
     
-    @Column(name = "match_id", nullable = false)
+    @Column(name = "match_id")
     private Long matchId;
     
     @Column(name = "team_id", nullable = false)

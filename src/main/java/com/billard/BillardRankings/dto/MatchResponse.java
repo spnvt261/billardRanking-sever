@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @Accessors(chain = true)
 public class MatchResponse {
     private Long id;
+    private String uuid;
     private Long workspaceId;
     private Long tournamentId;
     private String tournamentName; // thêm field này
@@ -29,6 +30,8 @@ public class MatchResponse {
     private TeamResponse team2;
     private Integer scoreTeam1;
     private Integer scoreTeam2;
+    private Integer raceTo;
+    private String scoreCounterLockToken;
     private Match.MatchType matchType;
     private Match.MatchCategory matchCategory;
     private BigDecimal betAmount;

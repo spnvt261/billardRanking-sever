@@ -31,7 +31,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // POST / PUT / DELETE → bỏ qua auth và test
-        return path.startsWith("/api/auth/") || path.startsWith("/api/test/") || path.startsWith("/api/images/");
+        // Các endpoint public khác
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/api/test/")
+                || path.startsWith("/api/images/")
+                || path.startsWith("/api/match-score-events")
+                || path.matches("^/api/matches/(uuid/[^/]+/)?(lock-score-counter|refresh-score-counter-lock|unlock-score-counter|verify-score-counter-token|create-score-counter)$");
+
     }
 
     @Override

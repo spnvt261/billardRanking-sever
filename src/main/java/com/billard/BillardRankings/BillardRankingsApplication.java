@@ -10,6 +10,7 @@ public class BillardRankingsApplication {
 
 	public static void main(String[] args) {
 		Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+//		Dotenv dotenv =null;
 //		try {
 //			dotenv = Dotenv.load();
 //		} catch (Exception e) {

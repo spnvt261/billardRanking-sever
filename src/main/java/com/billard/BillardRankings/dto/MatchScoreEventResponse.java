@@ -26,4 +26,7 @@ public class MatchScoreEventResponse {
     private String note;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Thêm trường team
+    private TeamResponse team;
 }

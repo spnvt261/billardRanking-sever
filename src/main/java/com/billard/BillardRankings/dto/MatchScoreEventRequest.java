@@ -21,7 +21,7 @@ public class MatchScoreEventRequest {
     
     private Long tournamentId;
     
-    @NotNull(message = "Match ID is required")
+//    @NotNull(message = "Match ID is required")
     private Long matchId;
     
     @NotNull(message = "Team ID is required")

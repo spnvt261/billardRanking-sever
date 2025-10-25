@@ -44,6 +44,21 @@ public class MatchController {
         return ResponseEntity.status(HttpStatus.OK).body(matchService.findById(id, workspaceId));
     }
 
+    @GetMapping("/uuid/{uuid}")
+    public ResponseEntity<MatchResponse> getMatchByUuid(
+            @PathVariable("uuid") String uuid,
+            @RequestParam(name = "workspaceId") Long workspaceId
+    ) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(matchService.findByUuid(uuid, workspaceId));
+    }
+
+    @PostMapping("/create-score-counter")
+    public ResponseEntity<MatchResponse> createScoreCounter(@RequestBody MatchRequest request) {
+        MatchResponse response = matchService.createScoreCounter(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PostMapping
     public ResponseEntity<MatchResponse> createMatch(@RequestBody MatchRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(matchService.save(request));
@@ -56,6 +71,52 @@ public class MatchController {
     ) {
         return ResponseEntity.status(HttpStatus.OK).body(matchService.save(id, request));
     }
+
+    // 🔒 LOCK: Khi người dùng mở trang score counter
+    @PutMapping("/uuid/{uuid}/lock-score-counter")
+    public ResponseEntity<String> lockScoreCounter(
+            @PathVariable("uuid") String uuid,
+            @RequestParam("workspaceId") Long workspaceId,
+            @RequestParam("raceTo") int raceTo // 👈 thêm tham số mới
+    ) {
+        String token = matchService.lockScoreCounterByUuid(uuid, workspaceId,raceTo);
+        return ResponseEntity.ok(token);
+    }
+
+    // 🔁 REFRESH: Gia hạn lock khi người dùng vẫn đang mở trang
+    @PutMapping("/uuid/{uuid}/refresh-score-counter-lock")
+    public ResponseEntity<Void> refreshScoreCounterLock(
+            @PathVariable("uuid") String uuid,
+            @RequestParam("workspaceId") Long workspaceId,
+            @RequestParam("token") String token
+    ) {
+        matchService.refreshScoreCounterLockByUuid(uuid, workspaceId, token);
+        return ResponseEntity.ok().build();
+    }
+
+    // 🔓 UNLOCK: Khi người dùng rời trang hoặc đóng tab
+    @PutMapping("/uuid/{uuid}/unlock-score-counter")
+    public ResponseEntity<Void> unlockScoreCounter(
+            @PathVariable("uuid") String uuid,
+            @RequestParam("workspaceId") Long workspaceId,
+            @RequestParam("token") String token
+    ) {
+        matchService.unlockScoreCounterByUuid(uuid, workspaceId, token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/uuid/{uuid}/verify-score-counter-token")
+    public ResponseEntity<Boolean> verifyScoreCounterToken(
+            @PathVariable String uuid,
+            @RequestParam Long workspaceId,
+            @RequestParam String token
+    ) {
+        boolean valid = matchService.verifyScoreCounterToken(uuid, token);
+        return ResponseEntity.ok(valid);
+    }
+
+
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMatch(

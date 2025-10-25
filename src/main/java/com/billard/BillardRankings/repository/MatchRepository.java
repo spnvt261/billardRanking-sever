@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecificationExecutor<Match> {
@@ -20,5 +21,6 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
             Tournament.TournamentType tournamentRoundType
     );
     List<Match> findByTournamentIdAndWorkspaceIdAndTournamentRound(Long tournamentId, Long workspaceId, int tournamentRound);
+    Optional<Match> findByUuid(String uuid);
 
 }

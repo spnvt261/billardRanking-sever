@@ -9,6 +9,7 @@ import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "matches")
@@ -18,6 +19,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Accessors(chain = true)
 public class Match extends BaseEntity {
+
+    @Column(name = "uuid", unique = true, nullable = false, updatable = false, length = 36)
+    private String uuid = UUID.randomUUID().toString();
     
     @Column(name = "workspace_id", nullable = false)
     private Long workspaceId;
@@ -36,6 +40,9 @@ public class Match extends BaseEntity {
     
     @Column(name = "score_team2")
     private Integer scoreTeam2 = 0;
+
+    @Column(name = "race_to")
+    private Integer raceTo = null;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "match_type")
@@ -74,13 +81,22 @@ public class Match extends BaseEntity {
     @Column(name = "winner_id")
     private Long winnerId;
 
+
+
     // 🆕 Liên kết các trận kế tiếp
     @Column(name = "next_match_if_win")
     private Long nextMatchIfWin;
 
     @Column(name = "next_match_if_losses")
     private Long nextMatchIfLosses;
-    
+
+    @Column(name = "score_counter_lock_token")
+    private String scoreCounterLockToken;
+
+    @Column(name = "score_counter_locked_at")
+    private LocalDateTime scoreCounterLockedAt;
+
+
     public enum MatchType {
         GROUP, QUARTERFINAL, SEMIFINAL, FINAL, THIRD_PLACE, LAST16, LAST32
     }

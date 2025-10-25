@@ -4,12 +4,16 @@ import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.MatchScoreEventRequest;
 import com.billard.BillardRankings.dto.MatchScoreEventResponse;
+import com.billard.BillardRankings.entity.Match;
+import com.billard.BillardRankings.repository.MatchRepository;
 import com.billard.BillardRankings.service.MatchScoreEventService;
+import com.billard.BillardRankings.service.MatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -20,6 +24,7 @@ import java.util.List;
 public class MatchScoreEventController {
 
     private final MatchScoreEventService matchScoreEventService;
+    private final MatchRepository matchRepository;
 
     @GetMapping
     public ResponseEntity<ListResponse<MatchScoreEventResponse>> getAllMatchScoreEvents(
@@ -43,33 +48,42 @@ public class MatchScoreEventController {
     }
 
     @PostMapping
-    public ResponseEntity<MatchScoreEventResponse> createMatchScoreEvent(@RequestBody MatchScoreEventRequest request) {
+    public ResponseEntity<MatchScoreEventResponse> createMatchScoreEvent(
+            @RequestBody MatchScoreEventRequest request,
+            @RequestParam("token") String scoreCounterLockToken
+    ) {
+        // Kiểm tra token
+        Match match = matchRepository.findById(request.getMatchId())
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+        if (!scoreCounterLockToken.equals(match.getScoreCounterLockToken())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid score counter lock token");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(matchScoreEventService.save(request));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<MatchScoreEventResponse> updateMatchScoreEvent(
-            @PathVariable("id") Long id,
-            @RequestBody MatchScoreEventRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.OK).body(matchScoreEventService.save(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMatchScoreEvent(
-            @PathVariable("id") Long id,
-            @RequestParam(name = "workspaceId") Long workspaceId
-    ) {
-        matchScoreEventService.delete(id, workspaceId);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-    }
-
-    @DeleteMapping
-    public ResponseEntity<Void> deleteMatchScoreEvents(
-            @RequestBody List<Long> ids,
-            @RequestParam(name = "workspaceId") Long workspaceId
-    ) {
-        matchScoreEventService.delete(ids, workspaceId);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-    }
+//    @PutMapping("/{id}")
+//    public ResponseEntity<MatchScoreEventResponse> updateMatchScoreEvent(
+//            @PathVariable("id") Long id,
+//            @RequestBody MatchScoreEventRequest request
+//    ) {
+//        return ResponseEntity.status(HttpStatus.OK).body(matchScoreEventService.save(id, request));
+//    }
+//
+//    @DeleteMapping("/{id}")
+//    public ResponseEntity<Void> deleteMatchScoreEvent(
+//            @PathVariable("id") Long id,
+//            @RequestParam(name = "workspaceId") Long workspaceId
+//    ) {
+//        matchScoreEventService.delete(id, workspaceId);
+//        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+//    }
+//
+//    @DeleteMapping
+//    public ResponseEntity<Void> deleteMatchScoreEvents(
+//            @RequestBody List<Long> ids,
+//            @RequestParam(name = "workspaceId") Long workspaceId
+//    ) {
+//        matchScoreEventService.delete(ids, workspaceId);
+//        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+//    }
 }

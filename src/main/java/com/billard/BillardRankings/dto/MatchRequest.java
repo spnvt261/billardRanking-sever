@@ -42,6 +42,8 @@ public class MatchRequest {
 
     @NotNull(message = "Score is required")
     private Integer scoreTeam2 = 0;
+
+    private Integer raceTo;
     
     private Match.MatchType matchType;
     private Match.MatchCategory matchCategory;

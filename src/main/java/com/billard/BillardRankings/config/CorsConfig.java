@@ -19,7 +19,7 @@ public class CorsConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-
+//        config.setAllowedOrigins(List.of("https://billard-ranking-react.vercel.app/", "http://localhost:5173","http://192.168.0.102:5173/","http://192.168.0.101:5173/"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
