@@ -106,6 +106,6 @@ public class Match extends BaseEntity {
     }
 
     public enum MatchStatus {
-        ONGOING, FINISHED,NOT_STARTED,UPCOMING
+        ONGOING, FINISHED,NOT_STARTED,UPCOMING,PAUSED
     }
 }

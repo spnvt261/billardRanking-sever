@@ -2,6 +2,7 @@ package com.billard.BillardRankings.controller;
 
 import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
+import com.billard.BillardRankings.dto.MatchResponse;
 import com.billard.BillardRankings.dto.MatchScoreEventRequest;
 import com.billard.BillardRankings.dto.MatchScoreEventResponse;
 import com.billard.BillardRankings.entity.Match;
@@ -34,10 +35,13 @@ public class MatchScoreEventController {
             @RequestParam(name = "filter", required = false) @Nullable String filter,
             @RequestParam(name = "search", required = false) @Nullable String search,
             @RequestParam(name = "all", required = false) boolean all,
-            @RequestParam(name = "workspaceId") Long workspaceId
+            @RequestParam(name = "workspaceId") Long workspaceId,
+            @RequestParam(name = "matchId") Long matchId // 🔹 Thêm param bắt buộc
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(matchScoreEventService.findAll(page, size, sort, filter, search, all, workspaceId));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(matchScoreEventService.findAll(page, size, sort, filter, search, all, workspaceId, matchId));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<MatchScoreEventResponse> getMatchScoreEvent(
@@ -59,6 +63,23 @@ public class MatchScoreEventController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid score counter lock token");
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(matchScoreEventService.save(request));
+    }
+    @PutMapping("/end-match/{id}")
+    public ResponseEntity<MatchResponse> endMatch(
+            @PathVariable("id") Long id,
+            @RequestParam("token") String scoreCounterLockToken
+    ) {
+         matchScoreEventService.endMatch(id,scoreCounterLockToken);
+        return ResponseEntity.status(HttpStatus.OK).body(null);
+    }
+
+    @PutMapping("/pause-match/{id}")
+    public ResponseEntity<MatchResponse> pauseMatch(
+            @PathVariable("id") Long id,
+            @RequestParam("token") String scoreCounterLockToken
+    ) {
+        matchScoreEventService.pauseMatch(id,scoreCounterLockToken);
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 
 //    @PutMapping("/{id}")

@@ -40,6 +40,7 @@ public class MatchResponse {
     private Integer round;
     private Integer gameNumber;
     private Long winnerId;
+    private Boolean hasRackCheck;
     private Long nextMatchIfWin;
     private Long nextMatchIfLosses;
     private Match.MatchStatus status;

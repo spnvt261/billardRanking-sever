@@ -2,6 +2,7 @@ package com.billard.BillardRankings.service;
 
 import com.billard.BillardRankings.dto.MatchRequest;
 import com.billard.BillardRankings.dto.MatchResponse;
+import com.billard.BillardRankings.dto.MatchUpdateRequest;
 
 import java.util.List;
 
@@ -15,5 +16,4 @@ public interface MatchService extends CrudService<Long, MatchRequest, MatchRespo
     void unlockScoreCounterByUuid(String uuid, Long workspaceId, String token);
     boolean verifyScoreCounterToken(String uuid, String token);
     MatchResponse createScoreCounter(MatchRequest request);
-
 }

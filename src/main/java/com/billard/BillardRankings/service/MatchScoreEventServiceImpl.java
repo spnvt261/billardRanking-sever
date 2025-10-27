@@ -1,10 +1,7 @@
 package com.billard.BillardRankings.service;
 
 import com.billard.BillardRankings.constant.ResourceName;
-import com.billard.BillardRankings.dto.ListResponse;
-import com.billard.BillardRankings.dto.MatchScoreEventRequest;
-import com.billard.BillardRankings.dto.MatchScoreEventResponse;
-import com.billard.BillardRankings.dto.TeamResponse;
+import com.billard.BillardRankings.dto.*;
 import com.billard.BillardRankings.entity.*;
 import com.billard.BillardRankings.mapper.GenericMapper;
 import com.billard.BillardRankings.mapper.MatchScoreEventMapper;
@@ -108,9 +105,31 @@ public class MatchScoreEventServiceImpl
     }
 
     @Override
-    public ListResponse<MatchScoreEventResponse> findAll(int page, int size, String sort, String filter, String search, boolean all, Long workspaceId) {
-        // Gọi phương thức findAll từ lớp cha
-        ListResponse<MatchScoreEventResponse> response = super.findAll(page, size, sort, filter, search, all, workspaceId);
+    public ListResponse<MatchScoreEventResponse> findAll(
+            int page,
+            int size,
+            String sort,
+            String filter,
+            String search,
+            boolean all,
+            Long workspaceId,
+            Long matchId
+    ) {
+        // Lọc theo matchId trước
+        String matchFilter = (filter == null || filter.isEmpty())
+                ? "matchId==" + matchId
+                : filter + ";matchId==" + matchId;
+
+        // Gọi phương thức findAll từ lớp cha, sắp xếp theo rackNumber giảm dần
+        ListResponse<MatchScoreEventResponse> response = super.findAll(
+                page,
+                size,
+                "rackNumber,desc", // sắp xếp theo rack giảm dần
+                matchFilter,
+                search,
+                all,
+                workspaceId
+        );
 
         // Cập nhật danh sách response để thêm thông tin team
         List<MatchScoreEventResponse> updatedResponses = response.getContent().stream()
@@ -122,14 +141,61 @@ public class MatchScoreEventServiceImpl
 
         // Tạo instance mới của ListResponse với danh sách đã cập nhật
         return new ListResponse<>(
-                updatedResponses,        // Danh sách đã cập nhật
-                response.getPage(),      // Trang hiện tại
-                response.getSize(),      // Kích thước trang
-                response.getTotalElements(), // Tổng số phần tử
-                response.getTotalPages(), // Tổng số trang
-                response.isLast()        // Cờ trang cuối
+                updatedResponses,
+                response.getPage(),
+                response.getSize(),
+                response.getTotalElements(),
+                response.getTotalPages(),
+                response.isLast()
         );
     }
+
+    @Override
+    public void endMatch(Long id, String token) {
+        // 1️⃣ Lấy match từ DB
+        Match match = matchRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+        if(!match.getScoreCounterLockToken().equals(token)){
+            throw new IllegalArgumentException("Token does not match score");
+        }
+        // 2️⃣ Cập nhật trạng thái và thời gian kết thúc
+        match.setStatus(Match.MatchStatus.FINISHED);
+
+
+
+        // 3️⃣ Nếu có winner/score trong request thì lưu lại
+        if (match.getScoreTeam1()>match.getScoreTeam2()) {
+            match.setWinnerId(match.getTeam1Id());
+        }else if (match.getScoreTeam2()>match.getScoreTeam1()) {
+            match.setWinnerId(match.getTeam2Id());
+        }else{
+            throw new IllegalArgumentException("Match can not end with a wrong score");
+        }
+
+        // 4️⃣ Lưu lại match và trả về response
+        matchRepository.save(match);
+        // ✅ Trả về response
+        return;
+    }
+
+    @Override
+    public void pauseMatch(Long id, String token) {
+        // 1️⃣ Lấy match từ DB
+        Match match = matchRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found"));
+
+        if(!match.getScoreCounterLockToken().equals(token)){
+            throw new IllegalArgumentException("Token does not match score");
+        }
+        // 2️⃣ Cập nhật trạng thái và thời gian kết thúc
+        match.setStatus(Match.MatchStatus.PAUSED);
+
+        // 4️⃣ Lưu lại match và trả về response
+        matchRepository.save(match);
+        // ✅ Trả về response
+        return;
+    }
+
 
     private TeamResponse buildTeamResponse(Long teamId) {
         if (teamId == null) return null;

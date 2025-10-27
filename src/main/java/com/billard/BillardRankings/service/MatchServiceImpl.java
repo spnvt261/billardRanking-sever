@@ -1,10 +1,7 @@
 package com.billard.BillardRankings.service.impl;
 
 import com.billard.BillardRankings.constant.ResourceName;
-import com.billard.BillardRankings.dto.ListResponse;
-import com.billard.BillardRankings.dto.MatchRequest;
-import com.billard.BillardRankings.dto.MatchResponse;
-import com.billard.BillardRankings.dto.TeamResponse;
+import com.billard.BillardRankings.dto.*;
 import com.billard.BillardRankings.entity.Match;
 import com.billard.BillardRankings.entity.Team;
 import com.billard.BillardRankings.entity.TeamPlayer;
@@ -35,6 +32,7 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
     private final TeamRepository teamRepository;
     private final PlayerRepository playerRepository;
     private final TeamPlayerRepository teamPlayerRepository;
+    private final MatchScoreEventRepository matchScoreEventRepository;
     private final MatchMapper matchMapper;
     private final PlayerMapper playerMapper;
     private final TournamentRepository tournamentRepository;
@@ -64,11 +62,19 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
                         .stream()
                         .collect(Collectors.toMap(Tournament::getId, Tournament::getName));
 
+        Set<Long> matchIds = filteredContent.stream()
+                .map(MatchResponse::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        // ✅ Lấy danh sách matchId có trong bảng match_score_events
+        Set<Long> matchIdsWithRack = matchIds.isEmpty() ? Set.of() :
+                matchScoreEventRepository.findDistinctMatchIdByMatchIdIn(matchIds);
         // Gán tournamentName cho từng match
         filteredContent.forEach(match -> {
             if (match.getTournamentId() != null) {
                 match.setTournamentName(tournamentMap.get(match.getTournamentId()));
             }
+            match.setHasRackCheck(matchIdsWithRack.contains(match.getId()));
         });
 
         // Tính số phần tử bị loại trên trang hiện tại
@@ -362,6 +368,7 @@ public class MatchServiceImpl extends BaseCrudServiceImpl<Match, MatchRequest, M
         response.setScoreCounterLockToken(token);
         return response;
     }
+
 
 
 

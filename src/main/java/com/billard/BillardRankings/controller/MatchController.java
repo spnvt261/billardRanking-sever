@@ -4,6 +4,7 @@ import com.billard.BillardRankings.constant.AppConstants;
 import com.billard.BillardRankings.dto.ListResponse;
 import com.billard.BillardRankings.dto.MatchRequest;
 import com.billard.BillardRankings.dto.MatchResponse;
+import com.billard.BillardRankings.dto.MatchUpdateRequest;
 import com.billard.BillardRankings.service.MatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -71,6 +72,8 @@ public class MatchController {
     ) {
         return ResponseEntity.status(HttpStatus.OK).body(matchService.save(id, request));
     }
+
+
 
     // 🔒 LOCK: Khi người dùng mở trang score counter
     @PutMapping("/uuid/{uuid}/lock-score-counter")
