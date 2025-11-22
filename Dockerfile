@@ -1,5 +1,5 @@
 # --- Stage 1: Build ---
-FROM openjdk:17-jdk-slim AS build
+FROM eclipse-temurin:17-jdk AS build
 
 WORKDIR /app
 
@@ -16,11 +16,12 @@ RUN ./mvnw dependency:go-offline -DskipTests
 
 # Copy toàn bộ source code
 COPY src ./src
+
 # Build project
 RUN ./mvnw clean package -DskipTests
 
 # --- Stage 2: Runtime ---
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
